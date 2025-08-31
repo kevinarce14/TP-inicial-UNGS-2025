@@ -1,0 +1,54 @@
+# ---------------------------------------
+# Archivos de Python
+# ---------------------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ---------------------------------------
+# Entornos virtuales
+# ---------------------------------------
+venv/
+env/
+.venv/
+ENV/
+
+# ---------------------------------------
+# Configuración de IDEs
+# ---------------------------------------
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# ---------------------------------------
+# Archivos temporales / logs
+# ---------------------------------------
+*.log
+*.tmp
+*.swp
+*.DS_Store
+Thumbs.db
+
+# ---------------------------------------
+# Jupyter Notebooks
+# ---------------------------------------
+.ipynb_checkpoints
+
+# ---------------------------------------
+# Datos / imágenes entrenadas
+# (añade aquí tus carpetas de datasets grandes que NO quieras versionar)
+# ---------------------------------------
+known_faces/
+output/
+*.jpg
+*.png
+*.mp4
+*.avi
