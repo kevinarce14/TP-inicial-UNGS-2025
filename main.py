@@ -1,3 +1,4 @@
+
 import threading
 import cv2
 import face_recognition
@@ -11,15 +12,15 @@ from collections import deque
 # ------------------------------
 # CONFIGURACIÓN
 # ------------------------------
-TOLERANCE = 0.6
-FRAME_THICKNESS = 3
-FONT_THICKNESS = 2
-MODEL = 'hog'  # 'hog' en CPU, 'cnn' con GPU CUDA
-DB_PATH = 'asistencia_empleados.db'
+TOLERANCIA = 0.6
+GROSOR_MARCO = 3
+GROSOR_FUENTE = 2
+MODELO = 'hog'  # 'hog' en CPU, 'cnn' con GPU CUDA
+RUTA_BD = 'asistencia_empleados.db'
 
 # Configuración de mensajes en pantalla
-MESSAGE_DURATION = 5  # segundos que se muestra cada mensaje
-MAX_MESSAGES = 5      # máximo número de mensajes en pantalla
+DURACION_MENSAJE = 5  # segundos que se muestra cada mensaje
+MAXIMO_MENSAJES = 5   # máximo número de mensajes en pantalla
 
 # Horarios de los turnos
 TURNOS = {
@@ -33,7 +34,7 @@ TURNOS = {
 # ------------------------------
 def verificar_tablas():
     """Verifica si las tablas existen, si no, las crea"""
-    if not os.path.exists(DB_PATH):
+    if not os.path.exists(RUTA_BD):
         print("La base de datos no existe. Creándola...")
         try:
             from create_database import create_database
@@ -42,14 +43,14 @@ def verificar_tablas():
             print("ERROR: No se pudo importar create_database")
     else:
         # Verificar si la tabla empleados existe
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+        conexion = sqlite3.connect(RUTA_BD)
+        cursor = conexion.cursor()
         try:
             cursor.execute("SELECT COUNT(*) FROM empleados")
-            conn.close()
+            conexion.close()
         except sqlite3.OperationalError:
             print("Las tablas no existen. Creándolas...")
-            conn.close()
+            conexion.close()
             try:
                 from create_database import create_database
                 create_database()
@@ -62,77 +63,77 @@ verificar_tablas()
 # ------------------------------
 # FUNCIONES DE BASE DE DATOS
 # ------------------------------
-def load_known_faces_from_db():
+def cargar_caras_conocidas_desde_bd():
     """Carga los rostros conocidos desde la base de datos"""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
+    conexion = sqlite3.connect(RUTA_BD)
+    cursor = conexion.cursor()
     
     cursor.execute("SELECT ID_Empleado, Nombre, Apellido, Embedding FROM empleados")
-    rows = cursor.fetchall()
+    filas = cursor.fetchall()
     
-    known_faces = []
-    known_names = []
-    employee_ids = []
+    caras_conocidas = []
+    nombres_conocidos = []
+    ids_empleados = []
     
-    for row in rows:
-        employee_id, nombre, apellido, embedding_blob = row
+    for fila in filas:
+        id_empleado, nombre, apellido, embedding_blob = fila
         # Convertir el BLOB a numpy array (CORRECCIÓN: usar float32)
         embedding = np.frombuffer(embedding_blob, dtype=np.float32)
-        known_faces.append(embedding)
-        full_name = f"{nombre} {apellido}"
-        known_names.append(full_name)
-        employee_ids.append(employee_id)
+        caras_conocidas.append(embedding)
+        nombre_completo = f"{nombre} {apellido}"
+        nombres_conocidos.append(nombre_completo)
+        ids_empleados.append(id_empleado)
     
-    conn.close()
-    return known_faces, known_names, employee_ids
+    conexion.close()
+    return caras_conocidas, nombres_conocidos, ids_empleados
 
 print("Cargando imágenes conocidas desde la base de datos...")
-known_faces, known_names, employee_ids = load_known_faces_from_db()
+caras_conocidas, nombres_conocidos, ids_empleados = cargar_caras_conocidas_desde_bd()
 
 print("Listo! Iniciando cámara...")
 
 # ------------------------------
 # VARIABLES COMPARTIDAS ENTRE HILOS
 # ------------------------------
-frame_lock = threading.Lock()
-message_lock = threading.Lock()
-current_frame = None
-current_results = []
+bloqueo_frame = threading.Lock()
+bloqueo_mensaje = threading.Lock()
+frame_actual = None
+resultados_actuales = []
 
 # Para reutilizar encodings previos
-last_matches = []  # [(id_empleado, nombre, (top,right,bottom,left)), ...]
+ultimas_coincidencias = []  # [(id_empleado, nombre, (top,right,bottom,left)), ...]
 
 # Cola de mensajes para mostrar en pantalla
-screen_messages = deque(maxlen=MAX_MESSAGES)
+mensajes_pantalla = deque(maxlen=MAXIMO_MENSAJES)
 
-class ScreenMessage:
-    def __init__(self, text, message_type='info'):
-        self.text = text
-        self.timestamp = time.time()
-        self.type = message_type  # 'success', 'error', 'warning', 'info'
+class MensajePantalla:
+    def __init__(self, texto, tipo_mensaje='info'):
+        self.texto = texto
+        self.marca_tiempo = time.time()
+        self.tipo = tipo_mensaje  # 'success', 'error', 'warning', 'info'
         
-    def is_expired(self):
-        return time.time() - self.timestamp > MESSAGE_DURATION
+    def esta_expirado(self):
+        return time.time() - self.marca_tiempo > DURACION_MENSAJE
 
-def add_screen_message(text, message_type='info'):
+def agregar_mensaje_pantalla(texto, tipo_mensaje='info'):
     """Agregar mensaje a la cola de mensajes en pantalla"""
-    with message_lock:
-        screen_messages.append(ScreenMessage(text, message_type))
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] {text}")
+    with bloqueo_mensaje:
+        mensajes_pantalla.append(MensajePantalla(texto, tipo_mensaje))
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] {texto}")
 
-def get_color_by_type(message_type):
+def obtener_color_por_tipo(tipo_mensaje):
     """Obtener color según el tipo de mensaje"""
-    colors = {
+    colores = {
         'success': (0, 150, 0),    # Verde
         'error': (0, 0, 255),      # Rojo
         'warning': (0, 165, 255),  # Naranja
         'info': (255, 255, 255)    # Blanco
     }
-    return colors.get(message_type, (255, 255, 255))
+    return colores.get(tipo_mensaje, (255, 255, 255))
 
-def same_face(loc1, loc2, threshold=50):
+def misma_cara(ubicacion1, ubicacion2, umbral=50):
     """Compara si dos caras están cerca en píxeles"""
-    return abs(loc1[0] - loc2[0]) < threshold and abs(loc1[1] - loc2[1]) < threshold
+    return abs(ubicacion1[0] - ubicacion2[0]) < umbral and abs(ubicacion1[1] - ubicacion2[1]) < umbral
 
 def determinar_turno_actual():
     """Determina el turno actual basado en la hora"""
@@ -178,12 +179,12 @@ def determinar_observacion(minutos_tarde):
     else:
         return 'Muy Tarde'
 
-def registrar_asistencia(employee_id, nombre_completo):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
+def registrar_asistencia(id_empleado, nombre_completo):
+    conexion = sqlite3.connect(RUTA_BD)
+    cursor = conexion.cursor()
     
     # Obtener información del empleado
-    cursor.execute("SELECT Turno FROM empleados WHERE ID_Empleado = ?", (employee_id,))
+    cursor.execute("SELECT Turno FROM empleados WHERE ID_Empleado = ?", (id_empleado,))
     resultado = cursor.fetchone()
     turno_empleado = resultado[0] if resultado else "Mañana"
     
@@ -198,7 +199,7 @@ def registrar_asistencia(employee_id, nombre_completo):
     SELECT ID_Asistencia, Hora_Ingreso, Hora_Egreso 
     FROM asistencias 
     WHERE ID_Empleado = ? AND Fecha = ?
-    ''', (employee_id, fecha_actual))
+    ''', (id_empleado, fecha_actual))
     
     registro = cursor.fetchone()
     
@@ -206,20 +207,12 @@ def registrar_asistencia(employee_id, nombre_completo):
         # Si ya existe un registro pero no tiene hora de egreso
         id_asistencia, hora_ingreso, hora_egreso = registro
         if hora_egreso is None:
-            # Registrar egreso
-            cursor.execute('''
-            UPDATE asistencias 
-            SET Hora_Egreso = ?, Estado_Asistencia = FALSE
-            WHERE ID_Asistencia = ?
-            ''', (ahora.strftime("%H:%M:%S"), id_asistencia))
-            add_screen_message(f"Ingreso registrado para {nombre_completo} a las {hora_actual}", 'success')
-        else:
-            add_screen_message(f"{nombre_completo} ya fue verificado hoy", 'success')
+            agregar_mensaje_pantalla(f"{nombre_completo} ya fue verificado hoy", 'success')
     else:
         # Verificar si el empleado está en el turno correcto
         if turno_empleado != turno_actual:
-            add_screen_message(f"Acceso denegado: {nombre_completo} no pertenece al turno {turno_actual}", 'error')
-            conn.close()
+            agregar_mensaje_pantalla(f"Acceso denegado: {nombre_completo} no pertenece al turno {turno_actual}", 'error')
+            conexion.close()
             return False
         
         # Calcular minutos de tardanza (usamos datetime.time aquí solo para cálculo)
@@ -227,8 +220,8 @@ def registrar_asistencia(employee_id, nombre_completo):
         
         # Verificar si la tardanza es mayor a 120 minutos
         if minutos_tarde > 120:
-            add_screen_message(f"Acceso denegado: {nombre_completo} llegó {minutos_tarde} minutos tarde", 'error')
-            conn.close()
+            agregar_mensaje_pantalla(f"Acceso denegado: {nombre_completo} llegó {minutos_tarde} minutos tarde", 'error')
+            conexion.close()
             return False
         
         # Determinar observación
@@ -239,49 +232,49 @@ def registrar_asistencia(employee_id, nombre_completo):
         INSERT INTO asistencias 
         (Fecha, ID_Empleado, Turno, Hora_Ingreso, Estado_Asistencia, Minutos_Tarde, Observacion)
         VALUES (?, ?, ?, ?, TRUE, ?, ?)
-        ''', (fecha_actual, employee_id, turno_empleado, hora_actual, minutos_tarde, observacion))
+        ''', (fecha_actual, id_empleado, turno_empleado, hora_actual, minutos_tarde, observacion))
         
         if observacion == 'Puntual':
-            add_screen_message(f"Ingreso registrado para {nombre_completo} a las {hora_actual}", 'success')
+            agregar_mensaje_pantalla(f"Ingreso registrado para {nombre_completo} a las {hora_actual}", 'success')
         else:
-            add_screen_message(f"Ingreso registrado para {nombre_completo} a las {hora_actual}. {observacion}", 'warning')
+            agregar_mensaje_pantalla(f"Ingreso registrado para {nombre_completo} a las {hora_actual}. {observacion}", 'warning')
     
-    conn.commit()
-    conn.close()
+    conexion.commit()
+    conexion.close()
     return True
 
-def draw_messages_on_frame(frame):
+def dibujar_mensajes_en_frame(frame):
     """Dibujar mensajes en el frame"""
-    with message_lock:
+    with bloqueo_mensaje:
         # Limpiar mensajes expirados
-        while screen_messages and screen_messages[0].is_expired():
-            screen_messages.popleft()
+        while mensajes_pantalla and mensajes_pantalla[0].esta_expirado():
+            mensajes_pantalla.popleft()
         
         # Dibujar mensajes actuales
-        y_offset = 30
-        for message in screen_messages:
-            color = get_color_by_type(message.type)
+        desplazamiento_y = 30
+        for mensaje in mensajes_pantalla:
+            color = obtener_color_por_tipo(mensaje.tipo)
             
             # Fondo semi-transparente para mejor legibilidad
-            text_size = cv2.getTextSize(message.text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)[0]
-            cv2.rectangle(frame, (10, y_offset - 25), (text_size[0] + 20, y_offset + 5), (0, 0, 0), -1)
-            cv2.rectangle(frame, (10, y_offset - 25), (text_size[0] + 20, y_offset + 5), color, 2)
+            tamano_texto = cv2.getTextSize(mensaje.texto, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)[0]
+            cv2.rectangle(frame, (10, desplazamiento_y - 25), (tamano_texto[0] + 20, desplazamiento_y + 5), (0, 0, 0), -1)
+            cv2.rectangle(frame, (10, desplazamiento_y - 25), (tamano_texto[0] + 20, desplazamiento_y + 5), color, 2)
             
             # Texto del mensaje
-            cv2.putText(frame, message.text, (15, y_offset), 
+            cv2.putText(frame, mensaje.texto, (15, desplazamiento_y), 
                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
             
-            y_offset += 45
+            desplazamiento_y += 45
 
 # ------------------------------
 # HILO DE CAPTURA
 # ------------------------------
-def capture_thread():
-    global current_frame
+def hilo_captura():
+    global frame_actual
     try:
-        video = cv2.VideoCapture(0)
+        video = cv2.VideoCapture(1)
         if not video.isOpened():
-            add_screen_message("Error: No se pudo abrir la cámara", 'error')
+            agregar_mensaje_pantalla("Error: No se pudo abrir la cámara", 'error')
             return
             
         video.set(cv2.CAP_PROP_FRAME_WIDTH, 1024)
@@ -290,12 +283,12 @@ def capture_thread():
         while True:
             ret, frame = video.read()
             if not ret:
-                add_screen_message("Error: No se pudo leer el frame de la cámara", 'error')
+                agregar_mensaje_pantalla("Error: No se pudo leer el frame de la cámara", 'error')
                 break
-            with frame_lock:
-                current_frame = frame.copy()
+            with bloqueo_frame:
+                frame_actual = frame.copy()
     except Exception as e:
-        add_screen_message(f"Error en hilo de captura: {e}", 'error')
+        agregar_mensaje_pantalla(f"Error en hilo de captura: {e}", 'error')
     finally:
         if 'video' in locals():
             video.release()
@@ -303,105 +296,105 @@ def capture_thread():
 # ------------------------------
 # HILO DE RECONOCIMIENTO
 # ------------------------------
-def recognition_thread():
-    global current_frame, current_results, last_matches
+def hilo_reconocimiento():
+    global frame_actual, resultados_actuales, ultimas_coincidencias
     # Para evitar registrar múltiples veces la misma asistencia
     ultimo_registro = {}
     
     while True:
         time.sleep(0.05)  # evita uso 100% CPU
 
-        with frame_lock:
-            if current_frame is None:
+        with bloqueo_frame:
+            if frame_actual is None:
                 continue
-            frame = current_frame.copy()
+            frame = frame_actual.copy()
 
         # Redimensionar para acelerar
-        small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
+        frame_pequeno = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
 
         # Detectar ubicaciones
-        face_locations = face_recognition.face_locations(small_frame, model=MODEL)
-        face_encodings = face_recognition.face_encodings(small_frame, face_locations)
+        ubicaciones_caras = face_recognition.face_locations(frame_pequeno, model=MODELO)
+        encodings_caras = face_recognition.face_encodings(frame_pequeno, ubicaciones_caras)
 
         # Escalar ubicaciones al tamaño original
-        face_locations = [(t*4, r*4, b*4, l*4) for (t, r, b, l) in face_locations]
+        ubicaciones_caras = [(t*4, r*4, b*4, l*4) for (t, r, b, l) in ubicaciones_caras]
 
-        current_matches = []
+        coincidencias_actuales = []
 
-        for face_encoding, face_location in zip(face_encodings, face_locations):
-            match_id = None
-            match_name = None
+        for encoding_cara, ubicacion_cara in zip(encodings_caras, ubicaciones_caras):
+            id_coincidencia = None
+            nombre_coincidencia = None
 
             # Reutilizar coincidencia anterior si la cara está cerca
-            for last_id, last_name, last_loc in last_matches:
-                if same_face(face_location, last_loc):
-                    match_id = last_id
-                    match_name = last_name
+            for ultimo_id, ultimo_nombre, ultima_ubicacion in ultimas_coincidencias:
+                if misma_cara(ubicacion_cara, ultima_ubicacion):
+                    id_coincidencia = ultimo_id
+                    nombre_coincidencia = ultimo_nombre
                     break
 
             # Si no estaba, comparar contra base de datos
-            if match_id is None:
-                results = face_recognition.compare_faces(known_faces, face_encoding, TOLERANCE)
-                if True in results:
-                    match_index = results.index(True)
-                    match_id = employee_ids[match_index]
-                    match_name = known_names[match_index]
+            if id_coincidencia is None:
+                resultados = face_recognition.compare_faces(caras_conocidas, encoding_cara, TOLERANCIA)
+                if True in resultados:
+                    indice_coincidencia = resultados.index(True)
+                    id_coincidencia = ids_empleados[indice_coincidencia]
+                    nombre_coincidencia = nombres_conocidos[indice_coincidencia]
                     
                     # Registrar asistencia (solo una vez cada 30 segundos por persona)
                     ahora = time.time()
-                    if match_id not in ultimo_registro or ahora - ultimo_registro[match_id] > 30:
-                        registrar_asistencia(match_id, match_name)
-                        ultimo_registro[match_id] = ahora
+                    if id_coincidencia not in ultimo_registro or ahora - ultimo_registro[id_coincidencia] > 30:
+                        registrar_asistencia(id_coincidencia, nombre_coincidencia)
+                        ultimo_registro[id_coincidencia] = ahora
 
-            current_matches.append((match_id, match_name, face_location))
+            coincidencias_actuales.append((id_coincidencia, nombre_coincidencia, ubicacion_cara))
 
         # Actualizar variables compartidas
-        with frame_lock:
-            current_results = current_matches
-            last_matches = current_matches.copy()
+        with bloqueo_frame:
+            resultados_actuales = coincidencias_actuales
+            ultimas_coincidencias = coincidencias_actuales.copy()
 
 # ------------------------------
 # INICIO DE HILOS
 # ------------------------------
-threading.Thread(target=capture_thread, daemon=True).start()
-threading.Thread(target=recognition_thread, daemon=True).start()
+threading.Thread(target=hilo_captura, daemon=True).start()
+threading.Thread(target=hilo_reconocimiento, daemon=True).start()
 
 # ------------------------------
 # BUCLE PRINCIPAL DE VISUALIZACIÓN
 # ------------------------------
 try:
     while True:
-        with frame_lock:
-            if current_frame is None:
+        with bloqueo_frame:
+            if frame_actual is None:
                 time.sleep(0.1)
                 continue
-            frame = current_frame.copy()
-            results = current_results.copy()
+            frame = frame_actual.copy()
+            resultados = resultados_actuales.copy()
 
         # Dibujar resultados de reconocimiento facial
-        for emp_id, name, (top, right, bottom, left) in results:
-            color = (0, 255, 0) if emp_id else (0, 0, 255)
-            cv2.rectangle(frame, (left, top), (right, bottom), color, FRAME_THICKNESS)
-            if name:
+        for id_empleado, nombre, (arriba, derecha, abajo, izquierda) in resultados:
+            color = (0, 255, 0) if id_empleado else (0, 0, 255)
+            cv2.rectangle(frame, (izquierda, arriba), (derecha, abajo), color, GROSOR_MARCO)
+            if nombre:
                 # Fondo para el nombre
-                text_size = cv2.getTextSize(name, cv2.FONT_HERSHEY_SIMPLEX, 0.7, FONT_THICKNESS)[0]
-                cv2.rectangle(frame, (left, top-35), (left + text_size[0] + 10, top), color, -1)
-                cv2.putText(frame, name, (left + 5, top-10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), FONT_THICKNESS)
+                tamano_texto = cv2.getTextSize(nombre, cv2.FONT_HERSHEY_SIMPLEX, 0.7, GROSOR_FUENTE)[0]
+                cv2.rectangle(frame, (izquierda, arriba-35), (izquierda + tamano_texto[0] + 10, arriba), color, -1)
+                cv2.putText(frame, nombre, (izquierda + 5, arriba-10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), GROSOR_FUENTE)
 
         # Dibujar mensajes en pantalla
-        draw_messages_on_frame(frame)
+        dibujar_mensajes_en_frame(frame)
 
         # Mostrar hora actual en esquina superior derecha
         hora_actual = datetime.now().strftime("%H:%M:%S")
         turno_actual = determinar_turno_actual()
-        info_text = f"{hora_actual} - Turno: {turno_actual}"
-        text_size = cv2.getTextSize(info_text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)[0]
-        frame_width = frame.shape[1]
+        texto_info = f"{hora_actual} - Turno: {turno_actual}"
+        tamano_texto = cv2.getTextSize(texto_info, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)[0]
+        ancho_frame = frame.shape[1]
         
-        cv2.rectangle(frame, (frame_width - text_size[0] - 15, 5), 
-                     (frame_width - 5, 35), (0, 0, 0), -1)
-        cv2.putText(frame, info_text, (frame_width - text_size[0] - 10, 25),
+        cv2.rectangle(frame, (ancho_frame - tamano_texto[0] - 15, 5), 
+                     (ancho_frame - 5, 35), (0, 0, 0), -1)
+        cv2.putText(frame, texto_info, (ancho_frame - tamano_texto[0] - 10, 25),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
 
         cv2.imshow("Sistema de Control de Asistencia", frame)
@@ -415,7 +408,7 @@ try:
             break
 
 except Exception as e:
-    add_screen_message(f"Error en el bucle principal: {e}", 'error')
+    agregar_mensaje_pantalla(f"Error en el bucle principal: {e}", 'error')
     print(f"Error en el bucle principal: {e}")
 
 finally:
