@@ -1,6 +1,9 @@
 En la terminal sobre la raiz del proyecto, por ejemplo 
 "Documents\Workspace\python_workspace\TP-inicial-UNGS-2025>"
 
+crear entorno virtual:
+python -m venv venv
+
 Activá tu entorno virtual con el comando:
 .\venv\Scripts\Activate.ps1
 
