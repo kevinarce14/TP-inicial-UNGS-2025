@@ -2,9 +2,8 @@ import sqlite3
 import os
 
 def create_database():
-    # Conectar a la base de datos (se creará si no existe)
-    conn = sqlite3.connect('asistencia_empleados.db')
-    cursor = conn.cursor()
+    conexion = sqlite3.connect('database/asistencia_empleados.db')
+    cursor = conexion.cursor()
     
     # Crear tabla de empleados
     cursor.execute('''
@@ -39,8 +38,8 @@ def create_database():
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_asistencias_fecha ON asistencias(Fecha)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_asistencias_empleado ON asistencias(ID_Empleado)')
     
-    conn.commit()
-    conn.close()
+    conexion.commit()
+    conexion.close()
     print("Base de datos creada exitosamente!")
 
 if __name__ == "__main__":
