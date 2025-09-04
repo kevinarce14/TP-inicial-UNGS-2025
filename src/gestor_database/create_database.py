@@ -12,7 +12,7 @@ def create_database():
         Nombre TEXT NOT NULL,
         Apellido TEXT NOT NULL,
         Departamento TEXT CHECK(Departamento IN ('Administración', 'Ventas', 'Producción', 'Recursos Humanos')),
-        Turno TEXT CHECK(Turno IN ('Mañana', 'Tarde', 'Noche')),
+        Turno TEXT CHECK(Turno IN ('Manana', 'Tarde', 'Noche')),
         Foto_Path TEXT,
         Embedding BLOB NOT NULL
     )
@@ -24,7 +24,7 @@ def create_database():
         ID_Asistencia INTEGER PRIMARY KEY AUTOINCREMENT,
         Fecha DATE NOT NULL,
         ID_Empleado INTEGER NOT NULL,
-        Turno TEXT CHECK(Turno IN ('Mañana', 'Tarde', 'Noche')),
+        Turno TEXT CHECK(Turno IN ('Manana', 'Tarde', 'Noche')),
         Hora_Ingreso TIME,
         Hora_Egreso TIME,
         Estado_Asistencia BOOLEAN,

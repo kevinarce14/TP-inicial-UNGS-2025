@@ -11,7 +11,7 @@ def agregar_empleado(nombre, apellido, departamento, turno, foto_path):
         return False
     
     # Validar turno
-    turnos_validos = ['Mañana', 'Tarde', 'Noche']
+    turnos_validos = ['Manana', 'Tarde', 'Noche']
     if turno not in turnos_validos:
         print(f"Turno inválido. Debe ser uno de: {', '.join(turnos_validos)}")
         return False
