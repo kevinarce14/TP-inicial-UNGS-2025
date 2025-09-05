@@ -19,6 +19,12 @@ class AttendanceManager:
         # Obtener información del empleado
         empleado = self.db_manager.obtener_empleado(empleado_id)
         if not empleado:
+            # REGISTRAR DENEGACIÓN: Persona no registrada
+            self.db_manager.registrar_denegacion(
+                motivo='persona_no_registrada',
+                modo_operacion='ingreso',
+                nombre_detectado=nombre_completo
+            )
             return {
                 'success': False,
                 'message': f"Error: Empleado {empleado_id} no encontrado",
@@ -39,6 +45,14 @@ class AttendanceManager:
         # Validar turno
         turno_actual = determinar_turno_actual()
         if empleado['turno'] != turno_actual:
+            # REGISTRAR DENEGACIÓN: Turno no corresponde
+            self.db_manager.registrar_denegacion(
+                motivo='turno_no_corresponde',
+                modo_operacion='ingreso',
+                id_empleado=empleado_id,
+                turno_esperado=empleado['turno'],
+                turno_detectado=turno_actual
+            )
             return {
                 'success': False,
                 'message': f"Acceso denegado: {nombre_completo} No pertenece al turno {turno_actual}",
@@ -52,6 +66,14 @@ class AttendanceManager:
         
         # Verificar límite de tardanza
         if minutos_tarde > MAX_MINUTOS_TARDE:
+            # REGISTRAR DENEGACIÓN: Llegada tarde
+            self.db_manager.registrar_denegacion(
+                motivo='llegada_tarde',
+                modo_operacion='ingreso',
+                id_empleado=empleado_id,
+                minutos_tarde=minutos_tarde,
+                observaciones=f"Llego {minutos_tarde} minutos tarde (limite: {MAX_MINUTOS_TARDE})"
+            )
             return {
                 'success': False,
                 'message': f"Acceso denegado: {nombre_completo} llego {minutos_tarde} minutos tarde",
@@ -109,6 +131,13 @@ class AttendanceManager:
         # Verificar si tiene ingreso registrado hoy
         asistencia_hoy = self.db_manager.verificar_asistencia_hoy(empleado_id)
         if not asistencia_hoy or not asistencia_hoy['tiene_ingreso']:
+            # REGISTRAR DENEGACIÓN: Sin ingreso previo
+            self.db_manager.registrar_denegacion(
+                motivo='sin_ingreso_previo',
+                modo_operacion='egreso',
+                id_empleado=empleado_id,
+                observaciones="Intento registrar egreso sin tener ingreso"
+            )
             return {
                 'success': False,
                 'message': f"{nombre_completo} no tiene ingreso registrado hoy",
