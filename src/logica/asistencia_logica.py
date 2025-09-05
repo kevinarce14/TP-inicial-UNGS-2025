@@ -2,12 +2,13 @@ import time
 from datetime import datetime
 from .administrador_database import DatabaseManager
 from ..utils.time_utils import determinar_turno_actual, calcular_minutos_tarde, determinar_observacion
-from .config import MAX_MINUTOS_TARDE, REGISTRO_COOLDOWN
+from .config import MAX_MINUTOS_TARDE, REGISTRO_COOLDOWN, DENEGACION_COOLDOWN
 
 class AttendanceManager:
     def __init__(self):
         self.db_manager = DatabaseManager()
         self.ultimo_registro = {}  # Para evitar registros múltiples
+        self.ultima_denegacion = {}  # Para evitar denegaciones múltiples
         
     def process_entry(self, empleado_id, nombre_completo):
         """Procesa el ingreso de un empleado"""
@@ -19,12 +20,15 @@ class AttendanceManager:
         # Obtener información del empleado
         empleado = self.db_manager.obtener_empleado(empleado_id)
         if not empleado:
-            # REGISTRAR DENEGACIÓN: Persona no registrada
-            self.db_manager.registrar_denegacion(
-                motivo='persona_no_registrada',
-                modo_operacion='ingreso',
-                nombre_detectado=nombre_completo
-            )
+            # REGISTRAR DENEGACIÓN: Persona no registrada (con cooldown)
+            if self._verificar_cooldown_denegacion('persona_no_registrada', empleado_id):
+                self.db_manager.registrar_denegacion(
+                    motivo='persona_no_registrada',
+                    modo_operacion='ingreso',
+                    nombre_detectado=nombre_completo
+                )
+                self._actualizar_cooldown_denegacion('persona_no_registrada', empleado_id)
+            
             return {
                 'success': False,
                 'message': f"Error: Empleado {empleado_id} no encontrado",
@@ -45,14 +49,17 @@ class AttendanceManager:
         # Validar turno
         turno_actual = determinar_turno_actual()
         if empleado['turno'] != turno_actual:
-            # REGISTRAR DENEGACIÓN: Turno no corresponde
-            self.db_manager.registrar_denegacion(
-                motivo='turno_no_corresponde',
-                modo_operacion='ingreso',
-                id_empleado=empleado_id,
-                turno_esperado=empleado['turno'],
-                turno_detectado=turno_actual
-            )
+            # REGISTRAR DENEGACIÓN: Turno no corresponde (con cooldown)
+            if self._verificar_cooldown_denegacion('turno_no_corresponde', empleado_id):
+                self.db_manager.registrar_denegacion(
+                    motivo='turno_no_corresponde',
+                    modo_operacion='ingreso',
+                    id_empleado=empleado_id,
+                    turno_esperado=empleado['turno'],
+                    turno_detectado=turno_actual
+                )
+                self._actualizar_cooldown_denegacion('turno_no_corresponde', empleado_id)
+            
             return {
                 'success': False,
                 'message': f"Acceso denegado: {nombre_completo} No pertenece al turno {turno_actual}",
@@ -66,14 +73,17 @@ class AttendanceManager:
         
         # Verificar límite de tardanza
         if minutos_tarde > MAX_MINUTOS_TARDE:
-            # REGISTRAR DENEGACIÓN: Llegada tarde
-            self.db_manager.registrar_denegacion(
-                motivo='llegada_tarde',
-                modo_operacion='ingreso',
-                id_empleado=empleado_id,
-                minutos_tarde=minutos_tarde,
-                observaciones=f"Llego {minutos_tarde} minutos tarde (limite: {MAX_MINUTOS_TARDE})"
-            )
+            # REGISTRAR DENEGACIÓN: Llegada tarde (con cooldown)
+            if self._verificar_cooldown_denegacion('llegada_tarde', empleado_id):
+                self.db_manager.registrar_denegacion(
+                    motivo='llegada_tarde',
+                    modo_operacion='ingreso',
+                    id_empleado=empleado_id,
+                    minutos_tarde=minutos_tarde,
+                    observaciones=f"Llego {minutos_tarde} minutos tarde (limite: {MAX_MINUTOS_TARDE})"
+                )
+                self._actualizar_cooldown_denegacion('llegada_tarde', empleado_id)
+            
             return {
                 'success': False,
                 'message': f"Acceso denegado: {nombre_completo} llego {minutos_tarde} minutos tarde",
@@ -131,13 +141,16 @@ class AttendanceManager:
         # Verificar si tiene ingreso registrado hoy
         asistencia_hoy = self.db_manager.verificar_asistencia_hoy(empleado_id)
         if not asistencia_hoy or not asistencia_hoy['tiene_ingreso']:
-            # REGISTRAR DENEGACIÓN: Sin ingreso previo
-            self.db_manager.registrar_denegacion(
-                motivo='sin_ingreso_previo',
-                modo_operacion='egreso',
-                id_empleado=empleado_id,
-                observaciones="Intento registrar egreso sin tener ingreso"
-            )
+            # REGISTRAR DENEGACIÓN: Sin ingreso previo (con cooldown)
+            if self._verificar_cooldown_denegacion('sin_ingreso_previo', empleado_id):
+                self.db_manager.registrar_denegacion(
+                    motivo='sin_ingreso_previo',
+                    modo_operacion='egreso',
+                    id_empleado=empleado_id,
+                    observaciones="Intento registrar egreso sin tener ingreso"
+                )
+                self._actualizar_cooldown_denegacion('sin_ingreso_previo', empleado_id)
+            
             return {
                 'success': False,
                 'message': f"{nombre_completo} no tiene ingreso registrado hoy",
@@ -193,6 +206,21 @@ class AttendanceManager:
     def _actualizar_cooldown(self, empleado_id):
         """Actualiza el timestamp del último registro"""
         self.ultimo_registro[empleado_id] = time.time()
+    
+    def _verificar_cooldown_denegacion(self, motivo, empleado_id):
+        """Verifica si ha pasado suficiente tiempo desde la última denegación del mismo tipo"""
+        ahora = time.time()
+        clave = f"{motivo}_{empleado_id}"
+        
+        if clave in self.ultima_denegacion:
+            tiempo_transcurrido = ahora - self.ultima_denegacion[clave]
+            return tiempo_transcurrido > DENEGACION_COOLDOWN
+        return True
+    
+    def _actualizar_cooldown_denegacion(self, motivo, empleado_id):
+        """Actualiza el timestamp de la última denegación"""
+        clave = f"{motivo}_{empleado_id}"
+        self.ultima_denegacion[clave] = time.time()
     
     def get_employee_status_today(self, empleado_id):
         """Obtiene el estado de asistencia del empleado hoy"""

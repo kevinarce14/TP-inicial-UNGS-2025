@@ -37,3 +37,6 @@ LIMITE_MEDIO_TARDE = 30  # 11-30 min = medio tarde
 # THREADING
 RECOGNITION_SLEEP = 0.05  # Segundos entre procesamiento de frames
 REGISTRO_COOLDOWN = 5     # Segundos antes de permitir nuevo procesamiento del mismo empleado
+
+
+DENEGACION_COOLDOWN = 300  # 5 minutos entre denegaciones del mismo tipo para el mismo empleado
