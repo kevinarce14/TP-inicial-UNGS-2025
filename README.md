@@ -16,7 +16,7 @@ Situados en la raíz del proyecto:
 * pip install -r requirements.txt
 * python -m web.app
 
-##Uso
+## Uso
 Se puede acceder a la pagina de la aplicacion mediante la instalacion local o mediante el siguente link: https://grupo12.pythonanywhere.com/
 Una vez en la pagina de la aplicacion se puede visualizar:
 * Tabla de empleados resgistrados
