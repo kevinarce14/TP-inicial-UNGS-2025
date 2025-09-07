@@ -7,12 +7,12 @@ import numpy as np
 from io import BytesIO
 from PIL import Image
 from src.logica.administrador_database import DatabaseManager
-db_manager = DatabaseManager()
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
-#DB_PATH = os.path.join(os.path.dirname(__file__), "..", "database", "asistencia_empleados.db")
+# Ruta de la base de datos
 DB_RUTA = 'database/asistencia_empleados.db'
+db_manager = DatabaseManager()
 
 def query_db(query, args=(), one=False):
     con = sqlite3.connect(DB_RUTA)
@@ -99,9 +99,9 @@ def detectar_rostro():
         os.makedirs('imagenes_empleados', exist_ok=True)
         cv2.imwrite(foto_path, img)
         print(f"Foto guardada en: {foto_path}")
-        return jsonify({'success': True, 'foto_path': foto_path})
+        return jsonify({'success': True, 'foto_path': foto_path, 'id': new_id})
     else:
-        return jsonify({'success': False, 'message': 'No se detectó un rostro'})
+        return jsonify({'success': False, 'message': 'No se detectó un rostro o la imagen no es clara'})
 
 # Ruta para agregar empleado
 @app.route('/api/agregar_empleado', methods=['POST'])
@@ -116,9 +116,6 @@ def api_agregar_empleado():
     success = db_manager.agregar_empleado(nombre, apellido, departamento, turno, foto_path)
     return jsonify({'success': success})
 
-# Otras rutas (como /api/empleados, /api/asistencias, etc.)
-# Asegúrate de incluir las rutas existentes para que el resto del frontend funcione
-
 # Ruta para borrar foto
 @app.route('/api/borrar_foto', methods=['POST'])
 def borrar_foto():
@@ -131,5 +128,3 @@ def borrar_foto():
 
 if __name__ == "__main__":
     app.run(debug=True)
-
-

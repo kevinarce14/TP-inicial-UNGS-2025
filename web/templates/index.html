@@ -124,6 +124,9 @@
       border-radius: 8px;
       display: none;
     }
+    #upload-photo {
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
@@ -334,6 +337,8 @@
             <video id="camera-preview" autoplay playsinline></video>
             <img id="captured-photo" src="" alt="Foto capturada">
             <button type="button" class="btn warn" id="reintentar-camara" style="display:none; margin-top:10px">Reintentar</button>
+            <input type="file" id="upload-photo" accept=".jpg,.jpeg,.png">
+            <button type="button" class="btn ghost" id="subir-foto-manual">Subir Foto Manual</button>
           </div>
           <button type="submit" class="btn" style="margin-top:10px">Agregar Empleado</button>
         </form>
@@ -370,6 +375,8 @@
     const mensaje = document.getElementById('agregar-mensaje');
     const agregarForm = document.getElementById('agregar-empleado-form');
     const reintentarBtn = document.getElementById('reintentar-camara');
+    const uploadPhoto = document.getElementById('upload-photo');
+    const subirFotoBtn = document.getElementById('subir-foto-manual');
 
     // Utilidades
     const toFloat = v => {
@@ -722,6 +729,7 @@
           if (data.success) {
             clearInterval(detectionInterval);
             fotoPath = data.foto_path;
+            employeeId = data.id;
             mensaje.textContent = 'Rostro detectado, aguarde 3 segundos...';
             mensaje.style.color = 'var(--ok)';
             setTimeout(() => {
@@ -770,7 +778,62 @@
       capturedPhoto.style.display = 'none';
       capturedPhoto.src = '';
       fotoPath = '';
+      employeeId = null;
       await iniciarCamara();
+    });
+
+    subirFotoBtn.addEventListener('click', async () => {
+      const file = uploadPhoto.files[0];
+      if (!file) {
+        mensaje.textContent = 'Seleccione un archivo.';
+        mensaje.style.color = 'var(--danger)';
+        return;
+      }
+
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (!['jpg', 'jpeg', 'png'].includes(ext)) {
+        mensaje.textContent = 'Formato inválido. Solo .jpg, .jpeg o .png.';
+        mensaje.style.color = 'var(--danger)';
+        return;
+      }
+
+      const nombre = document.getElementById('nuevo-nombre').value.trim();
+      const apellido = document.getElementById('nuevo-apellido').value.trim();
+      if (!nombre || !apellido) {
+        mensaje.textContent = 'Nombre y apellido son requeridos.';
+        mensaje.style.color = 'var(--danger)';
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('nombre', nombre);
+      formData.append('apellido', apellido);
+      formData.append('frame', file, file.name);
+
+      try {
+        const res = await fetch('/api/detectar_rostro', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (data.success) {
+          fotoPath = data.foto_path;
+          employeeId = data.id;
+          capturedPhoto.src = URL.createObjectURL(file);
+          capturedPhoto.style.display = 'block';
+          reintentarBtn.style.display = 'block';
+          mensaje.textContent = 'Imagen subida.';
+          mensaje.style.color = 'var(--ok)';
+        } else {
+          mensaje.textContent = 'No se detectó un rostro o la imagen no es clara. Reintente.';
+          mensaje.style.color = 'var(--danger)';
+          reintentarBtn.style.display = 'block';
+        }
+      } catch (err) {
+        console.error('Error al subir imagen:', err);
+        mensaje.textContent = 'Error al conectar con el servidor.';
+        mensaje.style.color = 'var(--danger)';
+      }
     });
 
     agregarForm.addEventListener('submit', async (e) => {
@@ -780,7 +843,7 @@
       const departamento = document.getElementById('nuevo-departamento').value;
       const turno = document.getElementById('nuevo-turno').value;
 
-      if (!nombre || !apellido || !departamento || !turno || !fotoPath) {
+      if (!nombre || !apellido || !departamento || !turno || !fotoPath || !employeeId) {
         mensaje.textContent = 'Todos los campos son requeridos, incluyendo la foto.';
         mensaje.style.color = 'var(--danger)';
         return;
