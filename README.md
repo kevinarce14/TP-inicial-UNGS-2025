@@ -1,4 +1,4 @@
-Prototipo de Control de Ingreso con Reconocimiento Facial
+## Prototipo de Control de Ingreso con Reconocimiento Facial
 
 ## Requerimientos
 
