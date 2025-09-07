@@ -20,21 +20,28 @@ class AttendanceManager:
         # Obtener información del empleado
         empleado = self.db_manager.obtener_empleado(empleado_id)
         if not empleado:
-            # REGISTRAR DENEGACIÓN: Persona no registrada (con cooldown)
-            if self._verificar_cooldown_denegacion('persona_no_registrada', empleado_id):
+            #unknown_key = nombre_completo or "desconocido"
+            key = "persona_no_registrada_global"
+            # Solo mostrar mensaje y devolver dict si pasa cooldown
+
+            if self._cooldown_take(self.ultima_denegacion, key, DENEGACION_COOLDOWN):
+                print('persona_no_registrada')
                 self.db_manager.registrar_denegacion(
                     motivo='persona_no_registrada',
                     modo_operacion='ingreso',
                     nombre_detectado=nombre_completo
                 )
-                self._actualizar_cooldown_denegacion('persona_no_registrada', empleado_id)
-            
-            return {
-                'success': False,
-                'message': f"Error: Empleado {empleado_id} no encontrado",
-                'type': 'error',
-                'empleado_id': None  # No es persistente, no hay empleado válido
-            }
+                #self._actualizar_cooldown_denegacion('persona_no_registrada', unknown_key)
+
+                return {
+                    'success': False,
+                    'message': f"Error: Empleado  no registrado",
+                    'type': 'error',
+                    'empleado_id': None
+                }
+
+            # Si está en cooldown, no devolver nada (ignorar)
+            return None
         
         # Verificar si ya registró asistencia hoy
         asistencia_hoy = self.db_manager.verificar_asistencia_hoy(empleado_id)
@@ -247,3 +254,23 @@ class AttendanceManager:
             })
         
         return status
+    
+    def _cooldown_take(self, bucket: dict, key: str, window) -> bool:
+        """
+        Intenta 'tomar' el cooldown. Devuelve True si corresponde ejecutar la acción y
+        actualiza el timestamp en el mismo paso (atómico). Si no, devuelve False.
+        Soporta window en segundos o datetime.timedelta.
+        """
+        now = time.time()
+
+        # Normalizar window a segundos
+        try:
+            win = float(window.total_seconds())  # si es timedelta
+        except AttributeError:
+            win = float(window)  # si ya es número
+
+        last = bucket.get(key, 0.0)
+        if now - last > win:
+            bucket[key] = now
+            return True
+        return False

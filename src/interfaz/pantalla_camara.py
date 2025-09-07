@@ -87,6 +87,29 @@ class CameraDisplay:
                                 message_handler.add_temporary_message(
                                     result['message'], result.get('type', 'info')
                                 )
+                    else:  # 👈 Caso NO reconocido
+                                # Solo procesar desconocidos si no se procesó recientemente
+                        #if "desconocido" not in self.last_access_status:
+                            result = attendance_manager.process_entry(None, nombre or "Desconocido")
+                        #else:
+                        #    result = None
+    
+                    # Guardar el estado de acceso para usar en draw_face_rectangles
+                    if result and 'type' in result:
+                            key = empleado_id if empleado_id else "desconocido"
+                            self.last_access_status[key] = result['type']
+
+                    # Mostrar mensaje si hay resultado
+                    if result and 'message' in result:
+                        result_empleado_id = result.get('empleado_id')
+                        if result_empleado_id is not None:
+                            message_handler.add_persistent_message(
+                            result_empleado_id, result['message'], result.get('type', 'info')
+                        )
+                        else:
+                            message_handler.add_temporary_message(
+                            result['message'], result.get('type', 'info')
+                        )
                 
                 # Actualizar resultados para display
                 with self.frame_lock:

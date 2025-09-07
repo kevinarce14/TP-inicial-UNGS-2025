@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Gestión de Asistencia y Producción</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+  <style>
+    :root{
+      --primary:#2563eb;
+      --primary-600:#1d4ed8;
+      --primary-700:#1e40af;
+      --bg:#0b1220;
+      --card:#0f172a;
+      --muted:#94a3b8;
+      --text:#e2e8f0;
+      --border:#23314d;
+      --accent:#22d3ee;
+      --warn:#f59e0b;
+      --ok:#10b981;
+      --danger:#ef4444;
+      --shadow: 0 10px 25px rgba(0,0,0,.25);
+    }
+    /* Layout */
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:linear-gradient(180deg,#0b1220 0%,#0a0f1a 100%);color:var(--text);font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif}
+    header{
+      position:sticky;top:0;z-index:1000;
+      background:linear-gradient(90deg,var(--primary-700),var(--primary));
+      color:#fff;padding:16px 12px;text-align:center;font-weight:700;letter-spacing:.4px;
+      box-shadow:var(--shadow)
+    }
+    header .sub{font-weight:500;opacity:.85;font-size:13px;margin-top:4px}
+
+    nav{
+      display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:center;
+      padding:14px 10px;background:transparent
+    }
+    .tab{
+      background:#0f172a;border:1px solid var(--border);color:var(--text);
+      padding:10px 16px;border-radius:999px;cursor:pointer;transition:.2s;
+    }
+    .tab:hover{border-color:#3b82f6;transform:translateY(-1px)}
+    .tab.active{background:linear-gradient(90deg,var(--primary-700),var(--primary));border-color:transparent}
+
+    main{padding:18px}
+    section{
+      display:none;max-width:1260px;margin:0 auto 28px;animation:fade .2s ease-out
+    }
+    section.active{display:block}
+    @keyframes fade{from{opacity:.6;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+    h2{
+      margin:0 0 14px;font-size:20px;font-weight:700;letter-spacing:.3px;
+      color:#dbeafe;display:flex;align-items:center;gap:10px
+    }
+    .card{
+      background:var(--card);border:1px solid var(--border);border-radius:16px;padding:14px;box-shadow:var(--shadow)
+    }
+    .filters{
+      display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px
+    }
+    .filters .group{
+      display:flex;align-items:center;gap:8px;background:#0b1220;border:1px solid var(--border);
+      padding:8px 10px;border-radius:12px
+    }
+    label{font-size:13px;color:var(--muted)}
+    select,input[type="date"],input[type="text"]{
+      background:#0b1220;color:var(--text);border:1px solid #24304a;border-radius:10px;
+      padding:6px 10px;font-size:13px;outline:none
+    }
+    .btn{
+      background:linear-gradient(90deg,var(--primary-700),var(--primary));color:#fff;border:none;border-radius:10px;
+      padding:8px 14px;font-weight:600;cursor:pointer;transition:.2s
+    }
+    .btn:hover{filter:brightness(1.08)}
+    .btn.ghost{background:#0b1220;color:#cbd5e1;border:1px solid var(--border)}
+    .btn.warn{background:linear-gradient(90deg,#b45309,var(--warn))}
+    .btn.reset{background:linear-gradient(90deg,#374151,#111827)}
+
+    /* Table */
+    .table-wrap{overflow:auto;border-radius:16px;border:1px solid var(--border);box-shadow:var(--shadow)}
+    table{width:100%;border-collapse:collapse;min-width:900px;background:#0b1220}
+    th,td{padding:10px 12px;border-bottom:1px solid #1f2937;text-align:center;white-space:nowrap;font-size:13px}
+    th{
+      position:sticky;top:0;background:#0e1627;color:#cfe1ff;border-bottom-color:#2b3a59;z-index:1
+    }
+    tr:hover td{background:#0f1a31}
+    .num{font-variant-numeric:tabular-nums}
+    .badge{
+      font-size:12px;border-radius:999px;padding:4px 10px;border:1px solid var(--border);background:#0f172a;color:#cbd5e1
+    }
+
+    /* Charts grid */
+    .charts{display:grid;grid-template-columns:1fr;gap:12px}
+    @media(min-width:600px){.charts{grid-template-columns:1fr 1fr}}
+    canvas{
+      background:#0b1220;border:1px solid var(--border);border-radius:16px;padding:8px;
+      min-height:180px;max-height:220px;aspect-ratio:4/3;width:100%;box-sizing:border-box
+    }
+
+    /* Helper pills */
+    .pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;border:1px solid var(--border);background:#0b1220;color:#cbd5e1;font-size:12px}
+
+    /* KPIs */
+    .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px}
+    .kpi-card{background:#0b1220;border:1px solid var(--border);border-radius:12px;padding:10px;text-align:center}
+    .kpi-label{font-size:13px;color:var(--muted);margin-bottom:4px}
+    .kpi-value{font-size:18px;font-weight:700;color:var(--text)}
+
+    /* Camera preview */
+    #camera-preview {
+      width: 300px;
+      height: 225px;
+      background: #000;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin: 10px 0;
+    }
+    #captured-photo {
+      max-width: 300px;
+      margin-top: 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    📊 Panel de Gestión
+    <div class="sub">Asistencia · Producción · Denegaciones · Métricas</div>
+  </header>
+
+  <nav>
+    <button class="tab active" data-target="empleados">Empleados</button>
+    <button class="tab" data-target="asistencias">Asistencias</button>
+    <button class="tab" data-target="denegaciones">Denegaciones</button>
+    <button class="tab" data-target="produccion">Producción</button>
+    <button class="tab" data-target="metricas">Métricas</button>
+    <button class="tab" data-target="agregar-empleado">Agregar Empleado</button>
+  </nav>
+
+  <main>
+    <!-- Empleados -->
+    <section id="empleados" class="active">
+      <h2>👨‍💼 Empleados</h2>
+      <div class="card">
+        <div class="filters">
+          <div class="group"><label>Turno</label>
+            <select id="filtro-turno"><option value="">Todos</option></select>
+          </div>
+          <div class="group"><label>Departamento</label>
+            <select id="filtro-departamento"><option value="">Todos</option></select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="empleados-table">
+            <thead>
+              <tr>
+                <th>ID</th><th>Nombre</th><th>Apellido</th><th>Departamento</th><th>Turno</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Asistencias -->
+    <section id="asistencias">
+      <h2>🕒 Asistencias</h2>
+      <div class="card">
+        <div class="filters">
+          <div class="group"><label>Desde</label><input type="date" id="filtro-fecha-inicio"></div>
+          <div class="group"><label>Hasta</label><input type="date" id="filtro-fecha-fin"></div>
+          <div class="group"><label>Turno</label>
+            <select id="filtro-asist-turno"><option value="">Todos</option></select>
+          </div>
+          <button class="btn" id="btn-filtrar-asist">Filtrar</button>
+          <button class="btn ghost" id="btn-reset-asist">Limpiar</button>
+        </div>
+        <div class="table-wrap">
+          <table id="asistencias-table">
+            <thead>
+              <tr>
+                <th>ID</th><th>Fecha</th><th>ID Empleado</th><th>Turno</th>
+                <th>Ingreso</th><th>Egreso</th><th>Estado</th><th>Min. Tarde</th><th>Observación</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Denegaciones -->
+    <section id="denegaciones">
+      <h2>🚫 Denegaciones</h2>
+      <div class="card">
+        <div class="filters">
+          <div class="group"><label>Motivo</label>
+            <select id="filtro-motivo"><option value="">Todos</option></select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="denegaciones-table">
+            <thead>
+              <tr>
+                <th>ID</th><th>Fecha</th><th>Hora</th><th>ID Empleado</th><th>Motivo</th><th>Modo</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Producción -->
+    <section id="produccion">
+      <h2>🏭 Producción</h2>
+      <div class="card">
+        <div class="filters">
+          <div class="group"><label>Fecha</label><input type="date" id="filtro-prod-fecha"></div>
+          <div class="group"><label>Producto</label>
+            <select id="filtro-prod-producto"><option value="">Todos</option></select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="produccion-table">
+            <thead>
+              <tr>
+                <th>ID</th><th>Fecha</th><th>Turno</th><th>Producto</th>
+                <th>Real</th><th>Buena</th><th>Defectuosa</th><th>OEE</th>
+                <th>Disp.</th><th>Rend.</th><th>Calidad</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Métricas -->
+    <section id="metricas">
+      <h2>📈 Métricas</h2>
+      <div class="card" style="margin-bottom:16px">
+        <div class="filters">
+          <div class="group"><label>Desde</label><input type="date" id="met-fecha-inicio"></div>
+          <div class="group"><label>Hasta</label><input type="date" id="met-fecha-fin"></div>
+          <div class="group"><label>Turno</label>
+            <select id="met-turno"><option value="">Todos</option></select>
+          </div>
+          <div class="group"><label>Departamento</label>
+            <select id="met-departamento"><option value="">Todos</option></select>
+          </div>
+          <div class="group"><label>Producto</label>
+            <select id="met-producto"><option value="">Todos</option></select>
+          </div>
+          <button class="btn" id="met-aplicar">Aplicar</button>
+          <button class="btn reset" id="met-reset">Reset</button>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
+          <div class="pill" id="pill-asist">Asistencias: <strong class="num" id="pill-asist-val">0</strong></div>
+          <div class="pill" id="pill-prod">Producción regs: <strong class="num" id="pill-prod-val">0</strong></div>
+          <div class="pill" id="pill-den">Denegaciones: <strong class="num" id="pill-den-val">0</strong></div>
+        </div>
+        <div class="kpis">
+          <div class="kpi-card">
+            <div class="kpi-label">Tasa de Asistencia</div>
+            <div id="kpi-tasa-asist" class="kpi-value num">0%</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Puntualidad</div>
+            <div id="kpi-puntualidad" class="kpi-value num">0%</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Índice de Ausentismo</div>
+            <div id="kpi-ausentismo" class="kpi-value num">0%</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">OEE Promedio</div>
+            <div id="kpi-oee" class="kpi-value num">0%</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Disponibilidad</div>
+            <div id="kpi-disponibilidad" class="kpi-value num">0%</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Rendimiento</div>
+            <div id="kpi-rendimiento" class="kpi-value num">0%</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Calidad</div>
+            <div id="kpi-calidad" class="kpi-value num">0%</div>
+          </div>
+        </div>
+      </div>
+      <div class="charts">
+        <canvas id="chart-asistencia-turno"></canvas>
+        <canvas id="chart-produccion-producto"></canvas>
+        <canvas id="chart-oee"></canvas>
+        <canvas id="chart-denegaciones-motivo"></canvas>
+      </div>
+    </section>
+
+    <!-- Agregar Empleado -->
+    <section id="agregar-empleado">
+      <h2>➕ Agregar Empleado</h2>
+      <div class="card">
+        <form id="agregar-empleado-form">
+          <div class="filters">
+            <div class="group"><label>Nombre</label><input type="text" id="nuevo-nombre" required></div>
+            <div class="group"><label>Apellido</label><input type="text" id="nuevo-apellido" required></div>
+            <div class="group"><label>Departamento</label>
+              <select id="nuevo-departamento" required>
+                <option value="">Seleccione</option>
+                <option value="Administración">Administración</option>
+                <option value="Ventas">Ventas</option>
+                <option value="Producción">Producción</option>
+                <option value="Recursos Humanos">Recursos Humanos</option>
+              </select>
+            </div>
+            <div class="group"><label>Turno</label>
+              <select id="nuevo-turno" required>
+                <option value="">Seleccione</option>
+                <option value="Manana">Mañana</option>
+                <option value="Tarde">Tarde</option>
+                <option value="Noche">Noche</option>
+              </select>
+            </div>
+          </div>
+          <div style="margin-top:10px">
+            <video id="camera-preview" autoplay playsinline></video>
+            <img id="captured-photo" src="" alt="Foto capturada">
+            <button type="button" class="btn warn" id="reintentar-camara" style="display:none; margin-top:10px">Reintentar</button>
+          </div>
+          <button type="submit" class="btn" style="margin-top:10px">Agregar Empleado</button>
+        </form>
+        <p id="agregar-mensaje" style="color:var(--ok);margin-top:10px"></p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Navegación
+    document.querySelectorAll('.tab').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        const target = btn.dataset.target;
+        document.querySelectorAll('section').forEach(s=>s.classList.remove('active'));
+        const section = document.getElementById(target);
+        section.classList.add('active');
+
+        // Iniciar cámara automáticamente en la pestaña Agregar Empleado
+        if (target === 'agregar-empleado') {
+          await iniciarCamara();
+        } else {
+          stopCamera();
+        }
+      });
+    });
+
+    // Datos globales
+    let empleadosData = [], asistenciasData = [], denegacionesData = [], produccionData = [];
+    let stream = null, detectionInterval = null, fotoPath = '', employeeId = null;
+    const video = document.getElementById('camera-preview');
+    const capturedPhoto = document.getElementById('captured-photo');
+    const mensaje = document.getElementById('agregar-mensaje');
+    const agregarForm = document.getElementById('agregar-empleado-form');
+    const reintentarBtn = document.getElementById('reintentar-camara');
+
+    // Utilidades
+    const toFloat = v => {
+      if (v === null || v === undefined || v === '') return NaN;
+      const num = parseFloat(v);
+      return isNaN(num) ? 0 : num;
+    };
+    const between = (d, i, f) => (!i || d >= i) && (!f || d <= f);
+    const uniq = arr => [...new Set(arr.filter(Boolean))];
+    const fmt2 = n => Number(n).toFixed(2);
+    const byDateAsc = (a,b)=> a.localeCompare(b);
+
+    // ===== CARGA =====
+    async function cargarEmpleados(){
+      const r = await fetch('/api/empleados'); empleadosData = await r.json();
+      const turnos = uniq(empleadosData.map(e=>e.Turno));
+      const deps   = uniq(empleadosData.map(e=>e.Departamento));
+      fillSelect('filtro-turno', turnos);
+      fillSelect('filtro-departamento', deps);
+      fillSelect('met-turno', uniq([...turnos, ...produccionData.map(p=>p.Turno)]));
+      fillSelect('met-departamento', deps);
+      renderEmpleados();
+    }
+
+    async function cargarAsistencias(){
+      const r = await fetch('/api/asistencias'); asistenciasData = await r.json();
+      fillSelect('filtro-asist-turno', uniq(asistenciasData.map(a=>a.Turno)));
+      renderAsistencias(asistenciasData);
+    }
+
+    async function cargarDenegaciones(){
+      const r = await fetch('/api/denegaciones'); denegacionesData = await r.json();
+      fillSelect('filtro-motivo', uniq(denegacionesData.map(d=>d.motivo)));
+      renderDenegaciones();
+    }
+
+    async function cargarProduccion(){
+      const r = await fetch('/api/produccion'); produccionData = await r.json();
+      fillSelect('filtro-prod-producto', uniq(produccionData.map(p=>p.Producto)));
+      fillSelect('met-producto', uniq(produccionData.map(p=>p.Producto)));
+      renderProduccion();
+    }
+
+    function fillSelect(id, values){
+      const el = document.getElementById(id);
+      const current = el.value || "";
+      el.innerHTML = '<option value="">Todos</option>' + values.map(v=>`<option>${v}</option>`).join('');
+      if(values.includes(current)) el.value = current;
+    }
+
+    // ===== RENDER TABLAS =====
+    function renderEmpleados(){
+      const turno = document.getElementById('filtro-turno').value;
+      const dep   = document.getElementById('filtro-departamento').value;
+      const tb = document.querySelector('#empleados-table tbody');
+      tb.innerHTML = '';
+      empleadosData.filter(e=>(!turno || e.Turno===turno) && (!dep || e.Departamento===dep))
+      .forEach(e=>{
+        tb.insertAdjacentHTML('beforeend', `
+          <tr>
+            <td class="num">${e.ID_Empleado}</td>
+            <td>${e.Nombre}</td>
+            <td>${e.Apellido}</td>
+            <td><span class="badge">${e.Departamento}</span></td>
+            <td><span class="badge">${e.Turno}</span></td>
+          </tr>
+        `);
+      });
+      actualizarMetricas();
+    }
+
+    function aplicarFiltroAsistencias(){
+      const i = document.getElementById('filtro-fecha-inicio').value;
+      const f = document.getElementById('filtro-fecha-fin').value;
+      const turno = document.getElementById('filtro-asist-turno').value;
+      renderAsistencias(asistenciasData.filter(a=>between(a.Fecha,i,f) && (!turno || a.Turno===turno)));
+    }
+
+    function renderAsistencias(data){
+      const tb = document.querySelector('#asistencias-table tbody');
+      tb.innerHTML = '';
+      data.forEach(a=>{
+        tb.insertAdjacentHTML('beforeend', `
+          <tr>
+            <td class="num">${a.ID_Asistencia}</td>
+            <td>${a.Fecha}</td>
+            <td class="num">${a.ID_Empleado}</td>
+            <td><span class="badge">${a.Turno}</span></td>
+            <td>${a.Hora_Ingreso||''}</td>
+            <td>${a.Hora_Egreso||''}</td>
+            <td>${a.Estado_Asistencia===1?'Presente':a.Estado_Asistencia===0?'Ausente':''}</td>
+            <td class="num">${a.Minutos_Tarde ?? ''}</td>
+            <td>${a.Observacion||''}</td>
+          </tr>
+        `);
+      });
+      actualizarMetricas();
+    }
+
+    function renderDenegaciones(){
+      const motivo = document.getElementById('filtro-motivo').value;
+      const tb = document.querySelector('#denegaciones-table tbody');
+      tb.innerHTML = '';
+      denegacionesData
+        .filter(d=>!motivo || d.motivo===motivo)
+        .forEach(d=>{
+          tb.insertAdjacentHTML('beforeend', `
+            <tr>
+              <td class="num">${d.id_denegacion}</td>
+              <td>${d.fecha}</td>
+              <td>${d.hora}</td>
+              <td class="num">${d.id_empleado}</td>
+              <td>${d.motivo}</td>
+              <td>${d.modo_operacion}</td>
+            </tr>
+          `);
+        });
+      actualizarMetricas();
+    }
+
+    function renderProduccion(){
+      const fecha = document.getElementById('filtro-prod-fecha').value;
+      const prod  = document.getElementById('filtro-prod-producto').value;
+      const tb = document.querySelector('#produccion-table tbody');
+      tb.innerHTML = '';
+      produccionData
+        .filter(p=>(!fecha || p.Fecha===fecha) && (!prod || p.Producto===prod))
+        .forEach(p=>{
+          tb.insertAdjacentHTML('beforeend', `
+            <tr>
+              <td class="num">${p.ID_Produccion}</td>
+              <td>${p.Fecha}</td>
+              <td><span class="badge">${p.Turno}</span></td>
+              <td>${p.Producto}</td>
+              <td class="num">${fmt2(toFloat(p.Produccion_Real))}</td>
+              <td class="num">${fmt2(toFloat(p.Produccion_Buena))}</td>
+              <td class="num">${fmt2(toFloat(p.Produccion_Defectuosa))}</td>
+              <td class="num">${fmt2(toFloat(p.OEE))}</td>
+              <td class="num">${fmt2(toFloat(p.Disponibilidad))}</td>
+              <td class="num">${fmt2(toFloat(p.Rendimiento))}</td>
+              <td class="num">${fmt2(toFloat(p.Calidad))}</td>
+            </tr>
+          `);
+        });
+      actualizarMetricas();
+    }
+
+    // ===== CHARTS =====
+    let chartAsistencia, chartProduccion, chartOEE, chartDenegaciones;
+    function initCharts(){
+      const cs = (id, cfg)=> new Chart(document.getElementById(id).getContext('2d'), cfg);
+
+      chartAsistencia = cs('chart-asistencia-turno', {
+        type:'bar',
+        data:{labels:[], datasets:[{label:'Asistencias', data:[], backgroundColor:'#60a5fa'}]},
+        options:{plugins:{legend:{labels:{color:'#e5e7eb'}}}, scales:{x:{ticks:{color:'#cbd5e1'}}, y:{ticks:{color:'#cbd5e1'}}}}
+      });
+
+      chartProduccion = cs('chart-produccion-producto', {
+        type:'doughnut',
+        data:{labels:[], datasets:[{data:[], backgroundColor:['#22d3ee','#34d399','#f59e0b','#ef4444','#a78bfa','#f472b6','#4ade80']}]},
+        options:{plugins:{legend:{labels:{color:'#e5e7eb'}}}}
+      });
+
+      chartOEE = cs('chart-oee', {
+        type:'line',
+        data:{labels:[], datasets:[{label:'OEE promedio (%)', data:[], borderColor:'#22d3ee', backgroundColor:'rgba(34,211,238,.15)', tension:.25, fill:true}]},
+        options:{plugins:{legend:{labels:{color:'#e5e7eb'}}}, scales:{x:{ticks:{color:'#cbd5e1'}}, y:{ticks:{color:'#cbd5e1'}}}}
+      });
+
+      chartDenegaciones = cs('chart-denegaciones-motivo', {
+        type:'bar',
+        data:{labels:[], datasets:[{label:'Denegaciones', data:[], backgroundColor:'#f472b6'}]},
+        options:{plugins:{legend:{labels:{color:'#e5e7eb'}}}, scales:{x:{ticks:{color:'#cbd5e1'}}, y:{ticks:{color:'#cbd5e1'}}}}
+      });
+    }
+
+    // ===== MÉTRICAS (con filtros propios) =====
+    function getMetricFilters(){
+      return {
+        inicio: document.getElementById('met-fecha-inicio').value,
+        fin:    document.getElementById('met-fecha-fin').value,
+        turno:  document.getElementById('met-turno').value,
+        dep:    document.getElementById('met-departamento').value,
+        prod:   document.getElementById('met-producto').value
+      };
+    }
+
+    function getAllowedEmployeesBy(turno, dep){
+      return new Set(
+        empleadosData
+          .filter(e=>(!turno || e.Turno===turno) && (!dep || e.Departamento===dep))
+          .map(e=>e.ID_Empleado)
+      );
+    }
+
+    function getFilteredForMetrics(){
+      const {inicio, fin, turno, dep, prod} = getMetricFilters();
+      const allowedEmp = getAllowedEmployeesBy(turno, dep);
+      const useEmpFilter = (turno || dep) ? true : false;
+
+      const asist = asistenciasData.filter(a=>
+          between(a.Fecha, inicio, fin) &&
+          (!turno || a.Turno===turno) &&
+          (!useEmpFilter || allowedEmp.has(a.ID_Empleado))
+      );
+
+      const den = denegacionesData.filter(d=>
+          between(d.fecha, inicio, fin) &&
+          (!useEmpFilter || allowedEmp.has(d.id_empleado))
+      );
+
+      const prodFil = produccionData.filter(p=>
+          between(p.Fecha, inicio, fin) &&
+          (!turno || p.Turno===turno) &&
+          (!prod || p.Producto===prod)
+      );
+
+      return {asist, den, prodFil};
+    }
+
+    function actualizarMetricas(){
+      const {asist, den, prodFil} = getFilteredForMetrics();
+      document.getElementById('pill-asist-val').textContent = asist.length;
+      document.getElementById('pill-prod-val').textContent  = prodFil.length;
+      document.getElementById('pill-den-val').textContent   = den.length;
+
+      // Depuración: Mostrar datos de asistencia filtrados
+      console.log('Registros de asistencia filtrados:', asist.map(a => ({
+        ID_Asistencia: a.ID_Asistencia,
+        Fecha: a.Fecha,
+        Estado_Asistencia: a.Estado_Asistencia,
+        Observacion: a.Observacion
+      })));
+
+      // Calcular KPIs de asistencia
+      const totalRegistros = asist.length;
+      const presents = asist.filter(a => a.Estado_Asistencia === 1).length;
+      const tasaAsistencia = totalRegistros > 0 ? fmt2((presents / totalRegistros) * 100) : 0;
+      const puntuales = asist.filter(a => a.Estado_Asistencia === 1 && a.Observacion === "Puntual").length;
+      console.log('Presentes:', presents, 'Puntuales:', puntuales);
+      const puntualidad = presents > 0 ? fmt2((puntuales / presents) * 100) : 0;
+      const ausentismo = totalRegistros > 0 ? fmt2(100 - tasaAsistencia) : 0;
+
+      // Actualizar KPIs en HTML
+      document.getElementById('kpi-tasa-asist').textContent = tasaAsistencia + '%';
+      document.getElementById('kpi-puntualidad').textContent = puntualidad + '%';
+      document.getElementById('kpi-ausentismo').textContent = ausentismo + '%';
+
+      // Calcular KPIs de producción
+      const numProd = prodFil.length;
+      const avgOee = numProd > 0 ? fmt2(prodFil.reduce((sum, p) => sum + toFloat(p.OEE), 0) / numProd) : 0;
+      const avgDisp = numProd > 0 ? fmt2(prodFil.reduce((sum, p) => sum + toFloat(p.Disponibilidad), 0) / numProd) : 0;
+      const avgRend = numProd > 0 ? fmt2(prodFil.reduce((sum, p) => sum + toFloat(p.Rendimiento), 0) / numProd) : 0;
+      const avgCal = numProd > 0 ? fmt2(prodFil.reduce((sum, p) => sum + toFloat(p.Calidad), 0) / numProd) : 0;
+
+      // Actualizar KPIs de producción en HTML
+      document.getElementById('kpi-oee').textContent = avgOee + '%';
+      document.getElementById('kpi-disponibilidad').textContent = avgDisp + '%';
+      document.getElementById('kpi-rendimiento').textContent = avgRend + '%';
+      document.getElementById('kpi-calidad').textContent = avgCal + '%';
+
+      // Actualizar gráficos
+      const byTurno = {};
+      asist.forEach(a=>{ byTurno[a.Turno]=(byTurno[a.Turno]||0)+1; });
+      chartAsistencia.data.labels = Object.keys(byTurno);
+      chartAsistencia.data.datasets[0].data = Object.values(byTurno);
+      chartAsistencia.update();
+
+      const byProd = {};
+      prodFil.forEach(p=>{
+        byProd[p.Producto] = (byProd[p.Producto]||0) + toFloat(p.Produccion_Real);
+      });
+      chartProduccion.data.labels = Object.keys(byProd);
+      chartProduccion.data.datasets[0].data = Object.values(byProd).map(fmt2);
+      chartProduccion.update();
+
+      const oeeMap = {};
+      prodFil.forEach(p=>{
+        (oeeMap[p.Fecha] ||= []).push(toFloat(p.OEE));
+      });
+      const fechas = Object.keys(oeeMap).sort(byDateAsc);
+      const oees = fechas.map(f=>{
+        const arr=oeeMap[f]; return arr.length? (arr.reduce((a,b)=>a+b,0)/arr.length):0;
+      }).map(n=>Number(fmt2(n)));
+      chartOEE.data.labels = fechas;
+      chartOEE.data.datasets[0].data = oees;
+      chartOEE.update();
+
+      const byMotivo = {};
+      den.forEach(d=>{ byMotivo[d.motivo]=(byMotivo[d.motivo]||0)+1; });
+      chartDenegaciones.data.labels = Object.keys(byMotivo);
+      chartDenegaciones.data.datasets[0].data = Object.values(byMotivo);
+      chartDenegaciones.update();
+    }
+
+    // ===== EVENTOS =====
+    document.addEventListener('change', e=>{
+      if(e.target.id==='filtro-turno' || e.target.id==='filtro-departamento'){ renderEmpleados(); }
+      if(e.target.id==='filtro-motivo'){ renderDenegaciones(); }
+      if(e.target.id==='filtro-prod-fecha' || e.target.id==='filtro-prod-producto'){ renderProduccion(); }
+      if(e.target.id==='filtro-asist-turno'){ aplicarFiltroAsistencias(); }
+    });
+    document.getElementById('btn-filtrar-asist').addEventListener('click', aplicarFiltroAsistencias);
+    document.getElementById('btn-reset-asist').addEventListener('click', ()=>{
+      document.getElementById('filtro-fecha-inicio').value = '';
+      document.getElementById('filtro-fecha-fin').value = '';
+      document.getElementById('filtro-asist-turno').value = '';
+      renderAsistencias(asistenciasData);
+    });
+
+    document.getElementById('met-aplicar').addEventListener('click', actualizarMetricas);
+    document.getElementById('met-reset').addEventListener('click', ()=>{
+      ['met-fecha-inicio','met-fecha-fin','met-turno','met-departamento','met-producto']
+        .forEach(id=> document.getElementById(id).value = '');
+      actualizarMetricas();
+    });
+
+    // ===== CÁMARA Y DETECCIÓN DE ROSTRO =====
+    async function iniciarCamara() {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+        video.play();
+        mensaje.textContent = 'Cámara iniciada, esperando detección de rostro...';
+        mensaje.style.color = 'var(--ok)';
+        reintentarBtn.style.display = 'none';
+
+        detectionInterval = setInterval(async () => {
+          const nombre = document.getElementById('nuevo-nombre').value.trim();
+          const apellido = document.getElementById('nuevo-apellido').value.trim();
+          if (!nombre || !apellido) return;
+
+          const canvas = document.createElement('canvas');
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          canvas.getContext('2d').drawImage(video, 0, 0);
+          const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+
+          const formData = new FormData();
+          formData.append('nombre', nombre);
+          formData.append('apellido', apellido);
+          formData.append('frame', blob, 'frame.png');
+
+          const res = await fetch('/api/detectar_rostro', {
+            method: 'POST',
+            body: formData
+          });
+          const data = await res.json();
+          if (data.success) {
+            clearInterval(detectionInterval);
+            fotoPath = data.foto_path;
+            mensaje.textContent = 'Rostro detectado, aguarde 3 segundos...';
+            mensaje.style.color = 'var(--ok)';
+            setTimeout(() => {
+              tomarFoto();
+              reintentarBtn.style.display = 'block';
+            }, 3000);
+          }
+        }, 500);
+      } catch (err) {
+        console.error('Error al acceder a la cámara:', err);
+        mensaje.textContent = 'Error al acceder a la cámara.';
+        mensaje.style.color = 'var(--danger)';
+        stopCamera();
+      }
+    }
+
+    function tomarFoto() {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      capturedPhoto.src = canvas.toDataURL('image/png');
+      capturedPhoto.style.display = 'block';
+      stopCamera();
+      mensaje.textContent = 'Foto capturada. Si no es satisfactoria, reintente.';
+      mensaje.style.color = 'var(--ok)';
+    }
+
+    function stopCamera() {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        video.srcObject = null;
+      }
+      if (detectionInterval) clearInterval(detectionInterval);
+    }
+
+    reintentarBtn.addEventListener('click', async () => {
+      if (fotoPath) {
+        // Borrar la foto fallida del servidor
+        await fetch('/api/borrar_foto', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ foto_path: fotoPath })
+        });
+      }
+      capturedPhoto.style.display = 'none';
+      capturedPhoto.src = '';
+      fotoPath = '';
+      await iniciarCamara();
+    });
+
+    agregarForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const nombre = document.getElementById('nuevo-nombre').value.trim();
+      const apellido = document.getElementById('nuevo-apellido').value.trim();
+      const departamento = document.getElementById('nuevo-departamento').value;
+      const turno = document.getElementById('nuevo-turno').value;
+
+      if (!nombre || !apellido || !departamento || !turno || !fotoPath) {
+        mensaje.textContent = 'Todos los campos son requeridos, incluyendo la foto.';
+        mensaje.style.color = 'var(--danger)';
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('nombre', nombre);
+      formData.append('apellido', apellido);
+      formData.append('departamento', departamento);
+      formData.append('turno', turno);
+      formData.append('foto_path', fotoPath);
+
+      try {
+        const res = await fetch('/api/agregar_empleado', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (data.success) {
+          mensaje.textContent = 'Empleado agregado exitosamente.';
+          mensaje.style.color = 'var(--ok)';
+          agregarForm.reset();
+          capturedPhoto.src = '';
+          capturedPhoto.style.display = 'none';
+          reintentarBtn.style.display = 'none';
+          await cargarEmpleados();
+          await iniciarCamara();
+        } else {
+          mensaje.textContent = 'Error al agregar empleado (verifica departamento, turno o foto).';
+          mensaje.style.color = 'var(--danger)';
+        }
+      } catch (err) {
+        console.error('Error al enviar datos:', err);
+        mensaje.textContent = 'Error al conectar con el servidor.';
+        mensaje.style.color = 'var(--danger)';
+      }
+    });
+
+    // ===== INIT =====
+    function initMetricSelectsIfEmpty(){
+      if(!document.getElementById('met-turno').options.length || document.getElementById('met-turno').options.length===1){
+        fillSelect('met-turno', uniq([...empleadosData.map(e=>e.Turno), ...produccionData.map(p=>p.Turno)]));
+      }
+      if(!document.getElementById('met-departamento').options.length || document.getElementById('met-departamento').options.length===1){
+        fillSelect('met-departamento', uniq(empleadosData.map(e=>e.Departamento)));
+      }
+      if(!document.getElementById('met-producto').options.length || document.getElementById('met-producto').options.length===1){
+        fillSelect('met-producto', uniq(produccionData.map(p=>p.Producto)));
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', async ()=>{
+      initCharts();
+      await Promise.all([cargarEmpleados(), cargarAsistencias(), cargarDenegaciones(), cargarProduccion()]);
+      initMetricSelectsIfEmpty();
+      actualizarMetricas();
+    });
+  </script>
+</body>
+</html>
