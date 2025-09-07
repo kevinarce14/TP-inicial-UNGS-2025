@@ -40,6 +40,6 @@ Situados en la raíz del proyecto:
 
 Comandos:
 
-    * python main.py --mode entry    : Modo ingreso (por defecto)
-    * python main.py --mode exit     : Modo egreso  
+     python main.py --mode entry    : Modo ingreso (por defecto)
+     python main.py --mode exit     : Modo egreso  
 
