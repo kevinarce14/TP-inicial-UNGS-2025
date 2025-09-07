@@ -31,6 +31,7 @@ Una vez en la pagina de la aplicacion se puede visualizar:
   <img width="1723" height="617" alt="image" src="https://github.com/user-attachments/assets/6867bd35-0c70-4f64-8b2e-152ccad50317" />
 * Apartado para agregar un empleado
   <img width="937" height="433" alt="image" src="https://github.com/user-attachments/assets/c395ff83-0007-4b5e-af96-39665649cdaf" />
+
   Se solicita completar todos los campos del formulario. Además, se requiere una fotografía del rostro de
   la persona que se va a registrar, la cual se capturará automáticamente. Una vez que la imagen sea capturada correctamente, el empleado será registrado en el sistema.
 
