@@ -126,6 +126,50 @@
     }
     #upload-photo {
       margin-top: 10px;
+      display: none;
+    }
+
+    /* Detection styles */
+    .detection-indicator {
+      position: relative;
+      display: inline-block;
+      margin-top: 10px;
+    }
+    
+    .detection-box {
+      position: absolute;
+      border: 3px solid #22d3ee;
+      border-radius: 8px;
+      box-shadow: 0 0 20px rgba(34, 211, 238, 0.7);
+      animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { opacity: 0.7; }
+      50% { opacity: 1; }
+      100% { opacity: 0.7; }
+    }
+    
+    .detection-status {
+      margin-top: 10px;
+      padding: 8px;
+      border-radius: 8px;
+      background-color: #0b1220;
+      border: 1px solid var(--border);
+      text-align: center;
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #detection-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 300px;
+      height: 225px;
+      pointer-events: none;
     }
   </style>
 </head>
@@ -333,8 +377,10 @@
               </select>
             </div>
           </div>
-          <div style="margin-top:10px">
+          <div style="margin-top:10px; position: relative;">
             <video id="camera-preview" autoplay playsinline></video>
+            <div id="detection-overlay"></div>
+            <div id="detection-status" class="detection-status">Ingrese nombre y apellido para iniciar la cámara</div>
             <img id="captured-photo" src="" alt="Foto capturada">
             <button type="button" class="btn warn" id="reintentar-camara" style="display:none; margin-top:10px">Reintentar</button>
             <input type="file" id="upload-photo" accept=".jpg,.jpeg,.png">
@@ -377,6 +423,8 @@
     const reintentarBtn = document.getElementById('reintentar-camara');
     const uploadPhoto = document.getElementById('upload-photo');
     const subirFotoBtn = document.getElementById('subir-foto-manual');
+    const detectionOverlay = document.getElementById('detection-overlay');
+    const detectionStatus = document.getElementById('detection-status');
 
     // Utilidades
     const toFloat = v => {
@@ -604,20 +652,11 @@
       document.getElementById('pill-prod-val').textContent  = prodFil.length;
       document.getElementById('pill-den-val').textContent   = den.length;
 
-      // Depuración: Mostrar datos de asistencia filtrados
-      console.log('Registros de asistencia filtrados:', asist.map(a => ({
-        ID_Asistencia: a.ID_Asistencia,
-        Fecha: a.Fecha,
-        Estado_Asistencia: a.Estado_Asistencia,
-        Observacion: a.Observacion
-      })));
-
       // Calcular KPIs de asistencia
       const totalRegistros = asist.length;
       const presents = asist.filter(a => a.Estado_Asistencia === 1).length;
       const tasaAsistencia = totalRegistros > 0 ? fmt2((presents / totalRegistros) * 100) : 0;
       const puntuales = asist.filter(a => a.Estado_Asistencia === 1 && a.Observacion === "Puntual").length;
-      console.log('Presentes:', presents, 'Puntuales:', puntuales);
       const puntualidad = presents > 0 ? fmt2((puntuales / presents) * 100) : 0;
       const ausentismo = totalRegistros > 0 ? fmt2(100 - tasaAsistencia) : 0;
 
@@ -695,55 +734,109 @@
       actualizarMetricas();
     });
 
-    // ===== CÁMARA Y DETECCIÓN DE ROSTRO =====
+    // ===== CÁMARA Y DETECCIÓN DE ROSTRO (mejorada) =====
     async function iniciarCamara() {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        stopCamera();
+        detectionStatus.textContent = 'Iniciando cámara...';
+        detectionStatus.style.color = 'var(--text)';
+        
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            facingMode: 'user' 
+          } 
+        });
+        
         video.srcObject = stream;
         video.play();
-        mensaje.textContent = 'Cámara iniciada, esperando detección de rostro...';
-        mensaje.style.color = 'var(--ok)';
+        
+        detectionStatus.textContent = 'Cámara activa. Colóquese frente a la cámara con buena iluminación.';
+        detectionStatus.style.color = 'var(--ok)';
         reintentarBtn.style.display = 'none';
 
-        detectionInterval = setInterval(async () => {
-          const nombre = document.getElementById('nuevo-nombre').value.trim();
-          const apellido = document.getElementById('nuevo-apellido').value.trim();
-          if (!nombre || !apellido) return;
+        // Iniciar detección cada 2 segundos
+        detectionInterval = setInterval(detectFace, 2000);
+        
+      } catch (err) {
+        console.error('Error al acceder a la cámara:', err);
+        detectionStatus.textContent = 'Error al acceder a la cámara. Asegúrese de permitir el acceso.';
+        detectionStatus.style.color = 'var(--danger)';
+        stopCamera();
+      }
+    }
 
-          const canvas = document.createElement('canvas');
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          canvas.getContext('2d').drawImage(video, 0, 0);
-          const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    // Función mejorada de detección de rostros
+    async function detectFace() {
+      const nombre = document.getElementById('nuevo-nombre').value.trim();
+      const apellido = document.getElementById('nuevo-apellido').value.trim();
+      if (!nombre || !apellido) {
+        detectionStatus.textContent = 'Ingrese nombre y apellido primero';
+        detectionStatus.style.color = 'var(--warn)';
+        return false;
+      }
 
-          const formData = new FormData();
-          formData.append('nombre', nombre);
-          formData.append('apellido', apellido);
-          formData.append('frame', blob, 'frame.png');
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
 
-          const res = await fetch('/api/detectar_rostro', {
-            method: 'POST',
-            body: formData
-          });
-          const data = await res.json();
-          if (data.success) {
+      const formData = new FormData();
+      formData.append('nombre', nombre);
+      formData.append('apellido', apellido);
+      formData.append('frame', blob, 'frame.png');
+
+      try {
+        const res = await fetch('/api/detectar_rostro', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+          // Mostrar cuadro de detección
+          drawDetectionBox();
+          detectionStatus.textContent = `¡Rostro detectado! Capturando en 3 segundos...`;
+          detectionStatus.style.color = 'var(--ok)';
+          
+          // Esperar 3 segundos y capturar
+          setTimeout(() => {
             clearInterval(detectionInterval);
             fotoPath = data.foto_path;
             employeeId = data.id;
-            mensaje.textContent = 'Rostro detectado, aguarde 3 segundos...';
-            mensaje.style.color = 'var(--ok)';
-            setTimeout(() => {
-              tomarFoto();
-              reintentarBtn.style.display = 'block';
-            }, 3000);
-          }
-        }, 500);
+            tomarFoto();
+            reintentarBtn.style.display = 'block';
+            detectionOverlay.innerHTML = '';
+            detectionStatus.textContent = 'Foto capturada correctamente';
+          }, 3000);
+          
+          return true;
+        } else {
+          detectionStatus.textContent = data.message || 'No se detectó un rostro';
+          detectionStatus.style.color = 'var(--danger)';
+          detectionOverlay.innerHTML = '';
+          return false;
+        }
       } catch (err) {
-        console.error('Error al acceder a la cámara:', err);
-        mensaje.textContent = 'Error al acceder a la cámara.';
-        mensaje.style.color = 'var(--danger)';
-        stopCamera();
+        console.error('Error en detección:', err);
+        detectionStatus.textContent = 'Error de conexión';
+        detectionStatus.style.color = 'var(--danger)';
+        return false;
       }
+    }
+
+    // Dibujar cuadro de detección
+    function drawDetectionBox() {
+      detectionOverlay.innerHTML = '';
+      const box = document.createElement('div');
+      box.className = 'detection-box';
+      box.style.width = '70%';
+      box.style.height = '70%';
+      box.style.top = '15%';
+      box.style.left = '15%';
+      detectionOverlay.appendChild(box);
     }
 
     function tomarFoto() {
@@ -768,7 +861,6 @@
 
     reintentarBtn.addEventListener('click', async () => {
       if (fotoPath) {
-        // Borrar la foto fallida del servidor
         await fetch('/api/borrar_foto', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
@@ -782,7 +874,11 @@
       await iniciarCamara();
     });
 
-    subirFotoBtn.addEventListener('click', async () => {
+    subirFotoBtn.addEventListener('click', () => {
+      uploadPhoto.click();
+    });
+
+    uploadPhoto.addEventListener('change', async () => {
       const file = uploadPhoto.files[0];
       if (!file) {
         mensaje.textContent = 'Seleccione un archivo.';
@@ -811,6 +907,9 @@
       formData.append('frame', file, file.name);
 
       try {
+        detectionStatus.textContent = 'Procesando imagen...';
+        detectionStatus.style.color = 'var(--text)';
+        
         const res = await fetch('/api/detectar_rostro', {
           method: 'POST',
           body: formData
@@ -822,17 +921,19 @@
           capturedPhoto.src = URL.createObjectURL(file);
           capturedPhoto.style.display = 'block';
           reintentarBtn.style.display = 'block';
-          mensaje.textContent = 'Imagen subida.';
+          detectionStatus.textContent = 'Imagen subida y rostro detectado.';
+          detectionStatus.style.color = 'var(--ok)';
+          mensaje.textContent = 'Foto cargada correctamente.';
           mensaje.style.color = 'var(--ok)';
         } else {
-          mensaje.textContent = 'No se detectó un rostro o la imagen no es clara. Reintente.';
-          mensaje.style.color = 'var(--danger)';
+          detectionStatus.textContent = data.message || 'No se detectó un rostro en la imagen.';
+          detectionStatus.style.color = 'var(--danger)';
           reintentarBtn.style.display = 'block';
         }
       } catch (err) {
         console.error('Error al subir imagen:', err);
-        mensaje.textContent = 'Error al conectar con el servidor.';
-        mensaje.style.color = 'var(--danger)';
+        detectionStatus.textContent = 'Error al conectar con el servidor.';
+        detectionStatus.style.color = 'var(--danger)';
       }
     });
 
@@ -869,6 +970,8 @@
           capturedPhoto.src = '';
           capturedPhoto.style.display = 'none';
           reintentarBtn.style.display = 'none';
+          detectionStatus.textContent = 'Ingrese nombre y apellido para iniciar la cámara';
+          detectionStatus.style.color = 'var(--text)';
           await cargarEmpleados();
           await iniciarCamara();
         } else {

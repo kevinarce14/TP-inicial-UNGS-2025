@@ -62,46 +62,75 @@ def produccion():
     """)
     return jsonify([dict(row) for row in rows])
 
-# Ruta para detectar rostro con OpenCV
+# Ruta para detectar rostro con OpenCV (mejorada)
 @app.route('/api/detectar_rostro', methods=['POST'])
 def detectar_rostro():
-    nombre = request.form['nombre']
-    apellido = request.form['apellido']
-    if not nombre or not apellido:
-        return jsonify({'success': False, 'message': 'Nombre y apellido son requeridos'}), 400
+    print("Solicitud recibida en /api/detectar_rostro")
+    try:
+        nombre = request.form['nombre']
+        apellido = request.form['apellido']
+        if not nombre or not apellido:
+            print("Faltan nombre o apellido")
+            return jsonify({'success': False, 'message': 'Nombre y apellido son requeridos'}), 400
 
-    # Obtener la imagen desde el formulario
-    if 'frame' not in request.files:
-        return jsonify({'success': False, 'message': 'No se proporcionó un frame'}), 400
-    frame_file = request.files['frame']
-    
-    # Convertir el archivo a imagen
-    img = Image.open(frame_file)
-    img = np.array(img)  # Convertir a formato numpy para OpenCV
-    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)  # Convertir de RGB a BGR
+        # Obtener la imagen desde el formulario
+        if 'frame' not in request.files:
+            print("No se recibió el archivo 'frame'")
+            return jsonify({'success': False, 'message': 'No se proporcionó un frame'}), 400
+        frame_file = request.files['frame']
+        
+        # Convertir el archivo a imagen
+        img = Image.open(frame_file)
+        img = np.array(img)
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 
-    # Cargar el clasificador de rostros de OpenCV
-    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-    if face_cascade.empty():
-        return jsonify({'success': False, 'message': 'Error al cargar el clasificador de rostros'}), 500
+        # Cargar el clasificador de rostros de OpenCV
+        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+        if face_cascade.empty():
+            print("Clasificador de rostros no cargado")
+            return jsonify({'success': False, 'message': 'Error al cargar el clasificador de rostros'}), 500
 
-    # Convertir a escala de grises para detección
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.05, minNeighbors=3, minSize=(50, 50))
-    
-    print(f"Rostros detectados por OpenCV: {len(faces)}")  # Depuración
-    if len(faces) > 0:
-        # Obtener el último ID_Empleado y asignar el siguiente
-        last_id = query_db("SELECT MAX(ID_Empleado) FROM empleados", one=True)
-        new_id = (last_id[0] or 0) + 1 if last_id else 1
-        # Rostro detectado, guardar la imagen
-        foto_path = os.path.join('imagenes_empleados', f'{nombre}_{apellido}{new_id}.png')
-        os.makedirs('imagenes_empleados', exist_ok=True)
-        cv2.imwrite(foto_path, img)
-        print(f"Foto guardada en: {foto_path}")
-        return jsonify({'success': True, 'foto_path': foto_path, 'id': new_id})
-    else:
-        return jsonify({'success': False, 'message': 'No se detectó un rostro o la imagen no es clara'})
+        # Convertir a escala de grises para detección
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        
+        # Mejorar la imagen para una mejor detección
+        gray = cv2.equalizeHist(gray)
+        
+        # Detectar rostros con parámetros optimizados
+        faces = face_cascade.detectMultiScale(
+            gray, 
+            scaleFactor=1.1, 
+            minNeighbors=5, 
+            minSize=(80, 80),
+            flags=cv2.CASCADE_SCALE_IMAGE
+        )
+        print(f"Rostros detectados por OpenCV: {len(faces)}")
+
+        if len(faces) > 0:
+            # Obtener el último ID_Empleado y asignar el siguiente
+            last_id = query_db("SELECT MAX(ID_Empleado) FROM empleados", one=True)
+            new_id = (last_id[0] or 0) + 1 if last_id else 1
+            
+            # Rostro detectado, guardar la imagen
+            os.makedirs('imagenes_empleados', exist_ok=True)
+            foto_path = os.path.join('imagenes_empleados', f'{nombre}_{apellido}_{new_id}.png')
+            cv2.imwrite(foto_path, img)
+            
+            print(f"Foto guardada en: {foto_path}")
+            return jsonify({
+                'success': True, 
+                'foto_path': foto_path, 
+                'id': new_id,
+                'faces_count': len(faces)
+            })
+        else:
+            return jsonify({
+                'success': False, 
+                'message': 'No se detectó un rostro. Asegúrese de tener buena iluminación y estar frente a la cámara.'
+            })
+    except Exception as e:
+        print(f"Error inesperado: {e}")
+        return jsonify({'success': False, 'message': f'Error interno: {str(e)}'}), 500
 
 # Ruta para agregar empleado
 @app.route('/api/agregar_empleado', methods=['POST'])
