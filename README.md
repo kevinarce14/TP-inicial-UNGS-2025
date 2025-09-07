@@ -37,7 +37,8 @@ Una vez en la pagina de la aplicacion se puede visualizar:
 
 ## Uso del prototipo de Control de Ingreso/Egreso con Reconocimiento Facial
 Situados en la raíz del proyecto: 
+
 Comandos:
-    python main.py --mode entry    : Modo ingreso (por defecto)
-    python main.py --mode exit     : Modo egreso  
+    * python main.py --mode entry    : Modo ingreso (por defecto)
+    * python main.py --mode exit     : Modo egreso  
 
