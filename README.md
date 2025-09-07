@@ -39,6 +39,7 @@ Una vez en la pagina de la aplicacion se puede visualizar:
 Situados en la raíz del proyecto: 
 
 Comandos:
+
     * python main.py --mode entry    : Modo ingreso (por defecto)
     * python main.py --mode exit     : Modo egreso  
 
