@@ -6,7 +6,6 @@ Módulo de lógica de negocio - Sistema de Control de Asistencia y Producción
 from .administrador_database import DatabaseManager
 from .face_recognition_engine import FaceRecognitionEngine
 from .asistencia_logica import AttendanceManager
-from .production_manager import ProductionManager
 from . import config
 
 __all__ = [
