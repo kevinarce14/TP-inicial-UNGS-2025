@@ -171,12 +171,61 @@
       height: 225px;
       pointer-events: none;
     }
+
+    /* Estilos para la sección de tótems */
+    #log-totem {
+      color: #cbd5e1;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      line-height: 1.4;
+      margin-top: 10px;
+      padding: 10px;
+      background: #0b1220;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      height: 200px;
+      overflow-y: auto;
+    }
+    
+    #log-totem div {
+      border-bottom: 1px solid #2d3748;
+      padding: 4px 0;
+    }
+    
+    #log-totem div:last-child {
+      border-bottom: none;
+    }
+
+    .totem-button {
+      background: linear-gradient(90deg, var(--primary-700), var(--primary));
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 20px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin: 5px;
+    }
+    
+    .totem-button:hover {
+      filter: brightness(1.1);
+      transform: translateY(-2px);
+    }
+    
+    .totem-button.entry {
+      background: linear-gradient(90deg, #059669, #10b981);
+    }
+    
+    .totem-button.exit {
+      background: linear-gradient(90deg, #dc2626, #ef4444);
+    }
   </style>
 </head>
 <body>
   <header>
     📊 Panel de Gestión
-    <div class="sub">Asistencia · Producción · Denegaciones · Métricas</div>
+    <div class="sub">Asistencia · Producción · Denegaciones · Métricas · Tótems</div>
   </header>
 
   <nav>
@@ -186,6 +235,7 @@
     <button class="tab" data-target="produccion">Producción</button>
     <button class="tab" data-target="metricas">Métricas</button>
     <button class="tab" data-target="agregar-empleado">Agregar Empleado</button>
+    <button class="tab" data-target="totems">Tótems</button>
   </nav>
 
   <main>
@@ -333,7 +383,7 @@
             <div class="kpi-label">Disponibilidad</div>
             <div id="kpi-disponibilidad" class="kpi-value num">0%</div>
           </div>
-          <div class="kpi-card">
+          <div classkpi-card">
             <div class="kpi-label">Rendimiento</div>
             <div id="kpi-rendimiento" class="kpi-value num">0%</div>
           </div>
@@ -391,6 +441,31 @@
         <p id="agregar-mensaje" style="color:var(--ok);margin-top:10px"></p>
       </div>
     </section>
+
+    <!-- Tótems de Ingreso/Egreso -->
+    <section id="totems">
+      <h2>🚪 Tótems de Ingreso/Egreso</h2>
+      <div class="card">
+        <div class="filters">
+          <div class="group">
+            <label>Modo de operación</label>
+            <select id="modo-totem">
+              <option value="entry">Ingreso</option>
+              <option value="exit">Egreso</option>
+            </select>
+          </div>
+          <button class="btn" id="ejecutar-totem">Ejecutar Tótem</button>
+        </div>
+        
+        <div style="margin-top: 20px;">
+          <h3 style="margin-bottom: 10px;">Estado del tótem</h3>
+          <div id="estado-totem" class="detection-status">Inactivo</div>
+          <div id="log-totem">
+            <!-- Aquí se mostrarán los logs -->
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
 
   <script>
@@ -410,6 +485,13 @@
         } else {
           stopCamera();
         }
+
+        // Si la pestaña es "Tótems", conectar WebSocket
+        if (target === 'totems') {
+          // conectarWebSocketLogs(); // Opcional si implementas WebSocket
+        } else if (totemSocket) {
+          // totemSocket.close(); // Cerrar WebSocket si cambias de pestaña
+        }
       });
     });
 
@@ -425,6 +507,11 @@
     const subirFotoBtn = document.getElementById('subir-foto-manual');
     const detectionOverlay = document.getElementById('detection-overlay');
     const detectionStatus = document.getElementById('detection-status');
+
+    // Variables para los tótems
+    let totemSocket = null;
+    const estadoTotem = document.getElementById('estado-totem');
+    const logTotem = document.getElementById('log-totem');
 
     // Utilidades
     const toFloat = v => {
@@ -984,6 +1071,53 @@
         mensaje.style.color = 'var(--danger)';
       }
     });
+
+    // ===== FUNCIONALIDAD PARA TÓTEMS =====
+    // Función para agregar logs al panel
+    function agregarLog(mensaje) {
+      const logEntry = document.createElement('div');
+      logEntry.textContent = new Date().toLocaleTimeString() + ' - ' + mensaje;
+      logTotem.appendChild(logEntry);
+      logTotem.scrollTop = logTotem.scrollHeight;
+    }
+
+    // Función para ejecutar el tótem
+    async function ejecutarTotem() {
+      const modo = document.getElementById('modo-totem').value;
+      
+      estadoTotem.textContent = 'Ejecutando...';
+      estadoTotem.style.color = 'var(--warn)';
+      agregarLog(`Iniciando tótem en modo ${modo === 'entry' ? 'ingreso' : 'egreso'}...`);
+      
+      try {
+        const response = await fetch('/api/ejecutar_totem', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ modo: modo })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          estadoTotem.textContent = 'En ejecución';
+          estadoTotem.style.color = 'var(--ok)';
+          agregarLog('Tótem iniciado correctamente');
+        } else {
+          estadoTotem.textContent = 'Error';
+          estadoTotem.style.color = 'var(--danger)';
+          agregarLog('Error: ' + data.message);
+        }
+      } catch (error) {
+        estadoTotem.textContent = 'Error de conexión';
+        estadoTotem.style.color = 'var(--danger)';
+        agregarLog('Error de conexión: ' + error.message);
+      }
+    }
+
+    // Event listener para el botón de ejecutar tótem
+    document.getElementById('ejecutar-totem').addEventListener('click', ejecutarTotem);
 
     // ===== INIT =====
     function initMetricSelectsIfEmpty(){

@@ -20,17 +20,17 @@ def main():
         print("\n1. Verificando base de datos existente...")
         db_manager = DatabaseManager()
         db_manager.verificar_tablas()
-        print("✓ Base de datos de asistencia verificada")
+        print("B Base de datos de asistencia verificada")
         
         # Crear tabla de denegaciones si no existe (tu código actual)
         print("\n2. Verificando tabla de denegaciones...")
         db_manager.crear_tabla_denegaciones()
-        print("✓ Tabla de denegaciones verificada")
+        print("B Tabla de denegaciones verificada")
         
         # Crear módulo de producción
         print("\n3. Creando módulo de producción...")
         production_manager = ProductionManager()
-        print("✓ Tabla de producción creada con:")
+        print("B Tabla de producción creada con:")
         print("  - Cálculo automático de OEE")
         print("  - Disponibilidad, Rendimiento y Calidad")
         print("  - Validaciones de integridad")
@@ -40,7 +40,7 @@ def main():
         # Verificar empleados existentes
         print("\n4. Verificando empleados registrados...")
         empleados_caras, empleados_nombres, empleados_ids = db_manager.cargar_embeddings()
-        print(f"✓ Encontrados {len(empleados_ids)} empleados registrados")
+        print(f"B Encontrados {len(empleados_ids)} empleados registrados")
         
         if empleados_ids:
             print("\n5. Empleados disponibles para producción:")
@@ -84,7 +84,7 @@ def main():
         print("- Consultas por fecha, empleado, producto, turno")
         
     except Exception as e:
-        print(f"\n✗ ERROR durante la actualización: {e}")
+        print(f"\nX ERROR durante la actualización: {e}")
         print("\nVerifique:")
         print("1. Que la estructura de carpetas src/ sea correcta")
         print("2. Que los archivos Python estén en sus ubicaciones")
@@ -99,6 +99,6 @@ if __name__ == "__main__":
         print(f"\n✅ Base de datos actualizada correctamente")
         print("La tabla de producción está lista para usar!")
     else:
-        print(f"\n❌ Error en la actualización")
+        print(f"\nX Error en la actualización")
     
     sys.exit(exit_code)

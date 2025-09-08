@@ -68,7 +68,7 @@ def crear_tabla_denegaciones():
         conexion.commit()
         conexion.close()
         
-        print("✓ Tabla 'denegaciones' creada exitosamente!")
+        print("B Tabla 'denegaciones' creada exitosamente!")
         
         # Mostrar estructura de la tabla
         print("\nEstructura de la tabla:")

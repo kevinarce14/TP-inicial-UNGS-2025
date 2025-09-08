@@ -45,12 +45,12 @@ def setup_system():
         camera_display = CameraDisplay()
         message_handler = MessageHandler()
         
-        print("✓ Componentes inicializados correctamente")
+        print("B Componentes inicializados correctamente")
         
         # Verificar y crear base de datos si es necesario
         print("Verificando base de datos...")
         db_manager.verificar_tablas()
-        print("✓ Base de datos verificada")
+        print("B Base de datos verificada")
         
         # Cargar caras conocidas
         print("Cargando empleados registrados...")
@@ -58,12 +58,12 @@ def setup_system():
             message_handler.add_message("Advertencia: No se encontraron empleados registrados", 'warning')
             print("⚠ No se encontraron empleados registrados")
         else:
-            print("✓ Empleados cargados correctamente")
+            print("B Empleados cargados correctamente")
         
         return face_engine, attendance_manager, camera_display, message_handler
         
     except Exception as e:
-        print(f"✗ Error durante la inicialización: {e}")
+        print(f"X Error durante la inicialización: {e}")
         return None
 
 def run_entry_mode():

@@ -157,7 +157,7 @@ def corregir_restriccion_y_datos():
             print(f"  - {emp[0]} {emp[1]}")
         
         conexion.close()
-        print("\n✓ Corrección completada exitosamente!")
+        print("\nB Corrección completada exitosamente!")
         
     except Exception as e:
         print(f"Error: {e}")

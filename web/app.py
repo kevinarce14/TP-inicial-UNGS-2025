@@ -7,6 +7,8 @@ import numpy as np
 from io import BytesIO
 from PIL import Image
 from src.logica.administrador_database import DatabaseManager
+import subprocess
+import threading
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
@@ -154,6 +156,34 @@ def borrar_foto():
         return jsonify({'success': True})
     else:
         return jsonify({'success': False, 'message': 'Foto no encontrada'})
+    
+@app.route('/api/ejecutar_totem', methods=['POST'])
+def ejecutar_totem():
+    try:
+        data = request.json
+        modo = data.get('modo', 'entry')
+        
+        # Ejecutar el proceso en segundo plano
+        def ejecutar_en_segundo_plano():
+            try:
+                comando = ['python', 'main.py', '--mode', modo]
+                resultado = subprocess.run(comando, capture_output=True, text=True, timeout=30)
+                print(f"Resultado del tótem ({modo}):", resultado.stdout)
+                if resultado.stderr:
+                    print("Errores:", resultado.stderr)
+            except subprocess.TimeoutExpired:
+                print(f"El tótem {modo} tardó demasiado tiempo")
+            except Exception as e:
+                print(f"Error ejecutando tótem: {e}")
+        
+        # Ejecutar en un hilo separado para no bloquear Flask
+        hilo = threading.Thread(target=ejecutar_en_segundo_plano)
+        hilo.start()
+        
+        return jsonify({'success': True, 'message': f'Tótem de {modo} iniciado correctamente'})
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
 
 if __name__ == "__main__":
     app.run(debug=True)
