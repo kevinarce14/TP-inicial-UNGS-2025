@@ -2,19 +2,30 @@
 
 ## Requerimientos
 
-* Python 3.12
-* opencv-python==4.7.0.72
-* numpy
-* flask
-* Pillow
-* imutils
+| Librería             | Versión recomendada | Uso                               |
+| -------------------- | ------------------- | --------------------------------- |
+| Python               | 3.10 o 3.11         | Base del proyecto                 |
+| opencv-python        | 4.7.0.72            | Procesamiento de imágenes y video |
+| dlib                 | 19.24.1             | Detección de rostros y landmarks  |
+| face-recognition     | 1.3.0               | Reconocimiento facial sobre dlib  |
+| numpy                | 1.26.0              | Manejo de matrices e imágenes     |
+| Pillow               | 10.0.0              | Manipulación de imágenes          |
+| imutils              | 0.5.4               | Funciones auxiliares para OpenCV  |
+| flask                | 2.3.2               | Aplicaciones web en Python        |
+| sqlite3              | -                   | Base de datos ligera sin servidor |
 
 ## Instalación
 
-Situados en la raíz del proyecto: 
-
+En la terminal, situados en la raíz del proyecto ejecutar los siguientes comando: 
+Crear un entorno virtual:
+* python -m venv venv
+Activá tu entorno virtual con el comando:
+* .\venv\Scripts\Activate.ps1
+Instalá todas las dependencias:
 * pip install -r requirements.txt
+Ejecutá la aplicación web:
 * python -m web.app
+
 
 ## Uso de la pagina de la aplicacion
 Se puede acceder a la pagina de la aplicacion mediante la instalacion local o mediante el siguente link: https://grupo12.pythonanywhere.com/
