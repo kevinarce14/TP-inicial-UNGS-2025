@@ -20,7 +20,7 @@ Primero, descargamos e instalamos Visual Studio Code en nuestra computadora Wind
 Segundo, descargamos e instalamos la version 3.11 de Python:
 * Link de Python 3.11.9: https://www.python.org/downloads/release/python-3119/
 
-Dentro de VS Code, abrimos la carpeta del proyecto, y en la terminal, situados en la raíz del proyecto ejecutar los siguientes comando: 
+Tercero, dentro de Visual Studio Code, abrimos la carpeta del proyecto, y en la terminal, situados en la raíz del proyecto ejecutar los siguientes comando: 
 
 Crear un entorno virtual (solo la primera vez):
 * python -m venv venv
