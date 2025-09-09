@@ -1,7 +1,6 @@
 ## Prototipo de Control de Ingreso con Reconocimiento Facial
 
 ## Requerimientos
-
 | Librería             | Versión recomendada | Uso                               |
 | -------------------- | ------------------- | --------------------------------- |
 | Python               | 3.10 o 3.11         | Base del proyecto                 |
@@ -12,20 +11,22 @@
 | Pillow               | 10.0.0              | Manipulación de imágenes          |
 | imutils              | 0.5.4               | Funciones auxiliares para OpenCV  |
 | flask                | 2.3.2               | Aplicaciones web en Python        |
-| sqlite3              | -                   | Base de datos ligera sin servidor |
 
 ## Instalación
 
 En la terminal, situados en la raíz del proyecto ejecutar los siguientes comando: 
-Crear un entorno virtual:
+Crear un entorno virtual (solo la primera vez):
 * python -m venv venv
+Dar permisos para ejecutar scripts en PowerShell (solo la primera vez):
+* Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
 Activá tu entorno virtual con el comando:
 * .\venv\Scripts\Activate.ps1
-Instalá todas las dependencias:
+Instalá todas las dependencias (solo la primera vez):
 * pip install -r requirements.txt
 Ejecutá la aplicación web:
 * python -m web.app
-
+Ejecutar la aplicación de escritorio:
+* python -m main.py
 
 ## Uso de la pagina de la aplicacion
 Se puede acceder a la pagina de la aplicacion mediante la instalacion local o mediante el siguente link: https://grupo12.pythonanywhere.com/
