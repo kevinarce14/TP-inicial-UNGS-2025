@@ -15,16 +15,22 @@
 ## Instalación
 
 En la terminal, situados en la raíz del proyecto ejecutar los siguientes comando: 
+
 Crear un entorno virtual (solo la primera vez):
 * python -m venv venv
+
 Dar permisos para ejecutar scripts en PowerShell (solo la primera vez):
 * Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+
 Activá tu entorno virtual con el comando:
 * .\venv\Scripts\Activate.ps1
+
 Instalá todas las dependencias (solo la primera vez):
 * pip install -r requirements.txt
+
 Ejecutá la aplicación web:
 * python -m web.app
+
 Ejecutar la aplicación de escritorio:
 * python -m main.py
 
