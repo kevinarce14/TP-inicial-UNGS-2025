@@ -38,7 +38,7 @@ Ejecutá la aplicación web:
 * python -m web.app
 
 Ejecutar la aplicación de escritorio:
-* python -m main.py
+* python main.py
 
 ## Uso de la pagina de la aplicacion
 Se puede acceder a la pagina de la aplicacion mediante la instalacion local o mediante el siguente link: https://grupo12.pythonanywhere.com/
