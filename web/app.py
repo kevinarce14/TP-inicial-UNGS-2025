@@ -166,7 +166,7 @@ def ejecutar_totem():
         # Ejecutar el proceso en segundo plano
         def ejecutar_en_segundo_plano():
             try:
-                comando = [sys.executable, 'main.py', '--mode', modo]
+                comando = [sys.executable, 'main.py','--mode',modo]
                 resultado = subprocess.run(comando, capture_output=True, text=True, timeout=30)
                 print(f"Resultado del tótem ({modo}):", resultado.stdout)
                 if resultado.stderr:
