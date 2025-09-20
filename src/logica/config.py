@@ -9,6 +9,16 @@ MODEL = 'hog'
 # CONFIGURACIÓN DE BASE DE DATOS
 DB_RUTA = 'database/asistencia_empleados.db'
 
+# CONFIGURACIÓN DE POSTGRESQL
+DB_CONFIG = {
+    'host': "ep-wispy-breeze-acjxjbvm-pooler.sa-east-1.aws.neon.tech",
+    'port': 5432,
+    'dbname': "neondb",
+    'user': "neondb_owner",
+    'password': "npg_gRD2wkVuvYH4",
+    'sslmode': "require"
+}
+
 # CONFIGURACIÓN DE MENSAJES EN PANTALLA
 DURACION_MENSAJE = 7 
 MAX_CANT_MENSAJES = 5 

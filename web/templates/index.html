@@ -421,7 +421,7 @@
             <div class="group"><label>Turno</label>
               <select id="nuevo-turno" required>
                 <option value="">Seleccione</option>
-                <option value="Manana">Mañana</option>
+                <option value="Mañana">Mañana</option>
                 <option value="Tarde">Tarde</option>
                 <option value="Noche">Noche</option>
               </select>
@@ -485,19 +485,14 @@
         } else {
           stopCamera();
         }
-
-        // Si la pestaña es "Tótems", conectar WebSocket
-        if (target === 'totems') {
-          // conectarWebSocketLogs(); // Opcional si implementas WebSocket
-        } else if (totemSocket) {
-          // totemSocket.close(); // Cerrar WebSocket si cambias de pestaña
-        }
       });
     });
 
     // Datos globales
     let empleadosData = [], asistenciasData = [], denegacionesData = [], produccionData = [];
-    let stream = null, detectionInterval = null, fotoPath = '', employeeId = null;
+    let stream = null, detectionInterval = null;
+    let fotoPath = '';          
+    let employeeId = null;     
     const video = document.getElementById('camera-preview');
     const capturedPhoto = document.getElementById('captured-photo');
     const mensaje = document.getElementById('agregar-mensaje');
@@ -509,7 +504,6 @@
     const detectionStatus = document.getElementById('detection-status');
 
     // Variables para los tótems
-    let totemSocket = null;
     const estadoTotem = document.getElementById('estado-totem');
     const logTotem = document.getElementById('log-totem');
 
@@ -526,33 +520,67 @@
 
     // ===== CARGA =====
     async function cargarEmpleados(){
-      const r = await fetch('/api/empleados'); empleadosData = await r.json();
-      const turnos = uniq(empleadosData.map(e=>e.Turno));
-      const deps   = uniq(empleadosData.map(e=>e.Departamento));
-      fillSelect('filtro-turno', turnos);
-      fillSelect('filtro-departamento', deps);
-      fillSelect('met-turno', uniq([...turnos, ...produccionData.map(p=>p.Turno)]));
-      fillSelect('met-departamento', deps);
-      renderEmpleados();
+      try {
+        const r = await fetch('/api/empleados'); 
+        empleadosData = await r.json();
+        console.log('Empleados cargados:', empleadosData);
+        
+        const turnos = uniq(empleadosData.map(e=>e.turno));
+        const deps   = uniq(empleadosData.map(e=>e.departamento));
+        fillSelect('filtro-turno', turnos);
+        fillSelect('filtro-departamento', deps);
+        fillSelect('met-turno', uniq([...turnos, ...produccionData.map(p=>p.turno)]));
+        fillSelect('met-departamento', deps);
+        renderEmpleados();
+      } catch (err) {
+        console.error('Error cargando empleados:', err);
+      }
     }
 
     async function cargarAsistencias(){
-      const r = await fetch('/api/asistencias'); asistenciasData = await r.json();
-      fillSelect('filtro-asist-turno', uniq(asistenciasData.map(a=>a.Turno)));
-      renderAsistencias(asistenciasData);
+      try {
+        const r = await fetch('/api/asistencias'); 
+        asistenciasData = await r.json();
+        console.log('Asistencias cargadas:', asistenciasData);
+        
+        fillSelect('filtro-asist-turno', uniq(asistenciasData.map(a=>a.turno)));
+        renderAsistencias(asistenciasData);
+      } catch (err) {
+        console.error('Error cargando asistencias:', err);
+      }
     }
 
     async function cargarDenegaciones(){
-      const r = await fetch('/api/denegaciones'); denegacionesData = await r.json();
-      fillSelect('filtro-motivo', uniq(denegacionesData.map(d=>d.motivo)));
-      renderDenegaciones();
+      try {
+        const r = await fetch('/api/denegaciones'); 
+        denegacionesData = await r.json();
+        console.log('Denegaciones cargadas:', denegacionesData);
+        
+        fillSelect('filtro-motivo', uniq(denegacionesData.map(d=>d.motivo)));
+        renderDenegaciones();
+      } catch (err) {
+        console.error('Error cargando denegaciones:', err);
+      }
     }
 
     async function cargarProduccion(){
-      const r = await fetch('/api/produccion'); produccionData = await r.json();
-      fillSelect('filtro-prod-producto', uniq(produccionData.map(p=>p.Producto)));
-      fillSelect('met-producto', uniq(produccionData.map(p=>p.Producto)));
-      renderProduccion();
+      try {
+        const r = await fetch('/api/produccion'); 
+        produccionData = await r.json();
+        console.log('Producción cargada:', produccionData);
+    
+        // Debug: mostrar primeros registros de producción
+        if (produccionData.length > 0) {
+          console.log('Primeras 3 producciones:', produccionData.slice(0, 3));
+          console.log('Campos de producción:', Object.keys(produccionData[0]));
+        }
+    
+        fillSelect('filtro-prod-producto', uniq(produccionData.map(p=>p.producto)));
+        fillSelect('met-producto', uniq(produccionData.map(p=>p.producto)));
+        renderProduccion();
+      } catch (err) {
+        console.error('Error cargando producción:', err);
+      }
     }
 
     function fillSelect(id, values){
@@ -568,15 +596,15 @@
       const dep   = document.getElementById('filtro-departamento').value;
       const tb = document.querySelector('#empleados-table tbody');
       tb.innerHTML = '';
-      empleadosData.filter(e=>(!turno || e.Turno===turno) && (!dep || e.Departamento===dep))
+      empleadosData.filter(e=>(!turno || e.turno===turno) && (!dep || e.departamento===dep))
       .forEach(e=>{
         tb.insertAdjacentHTML('beforeend', `
           <tr>
-            <td class="num">${e.ID_Empleado}</td>
-            <td>${e.Nombre}</td>
-            <td>${e.Apellido}</td>
-            <td><span class="badge">${e.Departamento}</span></td>
-            <td><span class="badge">${e.Turno}</span></td>
+            <td class="num">${e.id_empleado}</td>
+            <td>${e.nombre}</td>
+            <td>${e.apellido}</td>
+            <td><span class="badge">${e.departamento}</span></td>
+            <td><span class="badge">${e.turno}</span></td>
           </tr>
         `);
       });
@@ -587,29 +615,29 @@
       const i = document.getElementById('filtro-fecha-inicio').value;
       const f = document.getElementById('filtro-fecha-fin').value;
       const turno = document.getElementById('filtro-asist-turno').value;
-      renderAsistencias(asistenciasData.filter(a=>between(a.Fecha,i,f) && (!turno || a.Turno===turno)));
+      renderAsistencias(asistenciasData.filter(a=>between(a.fecha,i,f) && (!turno || a.turno===turno)));
     }
 
-    function renderAsistencias(data){
-      const tb = document.querySelector('#asistencias-table tbody');
-      tb.innerHTML = '';
-      data.forEach(a=>{
-        tb.insertAdjacentHTML('beforeend', `
-          <tr>
-            <td class="num">${a.ID_Asistencia}</td>
-            <td>${a.Fecha}</td>
-            <td class="num">${a.ID_Empleado}</td>
-            <td><span class="badge">${a.Turno}</span></td>
-            <td>${a.Hora_Ingreso||''}</td>
-            <td>${a.Hora_Egreso||''}</td>
-            <td>${a.Estado_Asistencia===1?'Presente':a.Estado_Asistencia===0?'Ausente':''}</td>
-            <td class="num">${a.Minutos_Tarde ?? ''}</td>
-            <td>${a.Observacion||''}</td>
-          </tr>
-        `);
-      });
-      actualizarMetricas();
-    }
+function renderAsistencias(data){
+  const tb = document.querySelector('#asistencias-table tbody');
+  tb.innerHTML = '';
+  data.forEach(a=>{
+    tb.insertAdjacentHTML('beforeend', `
+      <tr>
+        <td class="num">${a.id_asistencia}</td>
+        <td>${a.fecha}</td>
+        <td class="num">${a.id_empleado}</td>
+        <td><span class="badge">${a.turno}</span></td>
+        <td>${a.hora_ingreso||''}</td>
+        <td>${a.hora_egreso||''}</td>
+        <td>${a.estado_asistencia === true ? 'Presente' : 'Ausente'}</td>
+        <td class="num">${a.minutos_tarde ?? ''}</td>
+        <td>${a.observacion||''}</td>
+      </tr>
+    `);
+  });
+  actualizarMetricas();
+}
 
     function renderDenegaciones(){
       const motivo = document.getElementById('filtro-motivo').value;
@@ -632,32 +660,32 @@
       actualizarMetricas();
     }
 
-    function renderProduccion(){
-      const fecha = document.getElementById('filtro-prod-fecha').value;
-      const prod  = document.getElementById('filtro-prod-producto').value;
-      const tb = document.querySelector('#produccion-table tbody');
-      tb.innerHTML = '';
-      produccionData
-        .filter(p=>(!fecha || p.Fecha===fecha) && (!prod || p.Producto===prod))
-        .forEach(p=>{
-          tb.insertAdjacentHTML('beforeend', `
-            <tr>
-              <td class="num">${p.ID_Produccion}</td>
-              <td>${p.Fecha}</td>
-              <td><span class="badge">${p.Turno}</span></td>
-              <td>${p.Producto}</td>
-              <td class="num">${fmt2(toFloat(p.Produccion_Real))}</td>
-              <td class="num">${fmt2(toFloat(p.Produccion_Buena))}</td>
-              <td class="num">${fmt2(toFloat(p.Produccion_Defectuosa))}</td>
-              <td class="num">${fmt2(toFloat(p.OEE))}</td>
-              <td class="num">${fmt2(toFloat(p.Disponibilidad))}</td>
-              <td class="num">${fmt2(toFloat(p.Rendimiento))}</td>
-              <td class="num">${fmt2(toFloat(p.Calidad))}</td>
-            </tr>
-          `);
-        });
-      actualizarMetricas();
-    }
+function renderProduccion(){
+  const fecha = document.getElementById('filtro-prod-fecha').value;
+  const prod  = document.getElementById('filtro-prod-producto').value;
+  const tb = document.querySelector('#produccion-table tbody');
+  tb.innerHTML = '';
+  produccionData
+    .filter(p=>(!fecha || p.fecha===fecha) && (!prod || p.producto===prod))
+    .forEach(p=>{
+      tb.insertAdjacentHTML('beforeend', `
+        <tr>
+          <td class="num">${p.id_produccion}</td>
+          <td>${p.fecha}</td>
+          <td><span class="badge">${p.turno}</span></td>
+          <td>${p.producto}</td>
+          <td class="num">${fmt2(toFloat(p.production_real))}</td>
+          <td class="num">${fmt2(toFloat(p.production_buena))}</td>
+          <td class="num">${fmt2(toFloat(p.production_defectuosa))}</td>
+          <td class="num">${fmt2(toFloat(p.oee))}</td>
+          <td class="num">${fmt2(toFloat(p.disponibilidad))}</td>
+          <td class="num">${fmt2(toFloat(p.rendimiento))}</td>
+          <td class="num">${fmt2(toFloat(p.calidad))}</td>
+        </tr>
+      `);
+    });
+  actualizarMetricas();
+}
 
     // ===== CHARTS =====
     let chartAsistencia, chartProduccion, chartOEE, chartDenegaciones;
@@ -678,7 +706,7 @@
 
       chartOEE = cs('chart-oee', {
         type:'line',
-        data:{labels:[], datasets:[{label:'OEE promedio (%)', data:[], borderColor:'#22d3ee', backgroundColor:'rgba(34,211,238,.15)', tension:.25, fill:true}]},
+        data:{labels:[], datasets:[{label:'OEE Promedio (%)', data:[], borderColor:'#22d3ee', backgroundColor:'rgba(34,211,238,.15)', tension:.25, fill:true}]},
         options:{plugins:{legend:{labels:{color:'#e5e7eb'}}}, scales:{x:{ticks:{color:'#cbd5e1'}}, y:{ticks:{color:'#cbd5e1'}}}}
       });
 
@@ -703,8 +731,8 @@
     function getAllowedEmployeesBy(turno, dep){
       return new Set(
         empleadosData
-          .filter(e=>(!turno || e.Turno===turno) && (!dep || e.Departamento===dep))
-          .map(e=>e.ID_Empleado)
+          .filter(e=>(!turno || e.turno===turno) && (!dep || e.departamento===dep))
+          .map(e=>e.id_empleado)
       );
     }
 
@@ -714,9 +742,9 @@
       const useEmpFilter = (turno || dep) ? true : false;
 
       const asist = asistenciasData.filter(a=>
-          between(a.Fecha, inicio, fin) &&
-          (!turno || a.Turno===turno) &&
-          (!useEmpFilter || allowedEmp.has(a.ID_Empleado))
+          between(a.fecha, inicio, fin) &&
+          (!turno || a.turno===turno) &&
+          (!useEmpFilter || allowedEmp.has(a.id_empleado))
       );
 
       const den = denegacionesData.filter(d=>
@@ -725,9 +753,9 @@
       );
 
       const prodFil = produccionData.filter(p=>
-          between(p.Fecha, inicio, fin) &&
-          (!turno || p.Turno===turno) &&
-          (!prod || p.Producto===prod)
+          between(p.fecha, inicio, fin) &&
+          (!turno || p.turno===turno) &&
+          (!prod || p.producto===prod)
       );
 
       return {asist, den, prodFil};
@@ -741,9 +769,16 @@
 
       // Calcular KPIs de asistencia
       const totalRegistros = asist.length;
-      const presents = asist.filter(a => a.Estado_Asistencia === 1).length;
+      // Para campo BOOLEAN: true = Presente, false = Ausente
+      const presents = asist.filter(a => a.estado_asistencia === true).length;
       const tasaAsistencia = totalRegistros > 0 ? fmt2((presents / totalRegistros) * 100) : 0;
-      const puntuales = asist.filter(a => a.Estado_Asistencia === 1 && a.Observacion === "Puntual").length;
+ //     const presents = asist.filter(a => a.estado_asistencia === 1).length;
+//      const tasaAsistencia = totalRegistros > 0 ? fmt2((presents / totalRegistros) * 100) : 0;
+  // Para puntualidad: considerar minutos_tarde = 0 o null como puntual
+      const puntuales = asist.filter(a => 
+        a.estado_asistencia === true && 
+        (a.minutos_tarde === 0 || a.minutos_tarde === null || a.minutos_tarde === undefined)
+      ).length;
       const puntualidad = presents > 0 ? fmt2((puntuales / presents) * 100) : 0;
       const ausentismo = totalRegistros > 0 ? fmt2(100 - tasaAsistencia) : 0;
 
@@ -754,27 +789,28 @@
 
       // Calcular KPIs de producción
       const numProd = prodFil.length;
-      const avgOee = numProd > 0 ? fmt2(prodFil.reduce((sum, p) => sum + toFloat(p.OEE), 0) / numProd) : 0;
-      const avgDisp = numProd > 0 ? fmt2(prodFil.reduce((sum, p) => sum + toFloat(p.Disponibilidad), 0) / numProd) : 0;
-      const avgRend = numProd > 0 ? fmt2(prodFil.reduce((sum, p) => sum + toFloat(p.Rendimiento), 0) / numProd) : 0;
-      const avgCal = numProd > 0 ? fmt2(prodFil.reduce((sum, p) => sum + toFloat(p.Calidad), 0) / numProd) : 0;
+      const avgOee = numProd > 0 ? fmt2(prodFil.reduce((sum, p) => sum + toFloat(p.oee), 0) / numProd) : 0;
+      const avgDisponibilidad = numProd > 0 ? fmt2(prodFil.reduce((sum, p) => sum + toFloat(p.disponibilidad), 0) / numProd) : 0;
+      const avgRendimiento = numProd > 0 ? fmt2(prodFil.reduce((sum, p) => sum + toFloat(p.rendimiento), 0) / numProd) : 0;
+      const avgCalidad = numProd > 0 ? fmt2(prodFil.reduce((sum, p) => sum + toFloat(p.calidad), 0) / numProd) : 0;
 
       // Actualizar KPIs de producción en HTML
       document.getElementById('kpi-oee').textContent = avgOee + '%';
-      document.getElementById('kpi-disponibilidad').textContent = avgDisp + '%';
-      document.getElementById('kpi-rendimiento').textContent = avgRend + '%';
-      document.getElementById('kpi-calidad').textContent = avgCal + '%';
+      document.getElementById('kpi-disponibilidad').textContent = avgDisponibilidad + '%';
+      document.getElementById('kpi-rendimiento').textContent = avgRendimiento + '%';
+      document.getElementById('kpi-calidad').textContent = avgCalidad + '%';
 
       // Actualizar gráficos
       const byTurno = {};
-      asist.forEach(a=>{ byTurno[a.Turno]=(byTurno[a.Turno]||0)+1; });
+      asist.forEach(a=>{ byTurno[a.turno]=(byTurno[a.turno]||0)+1; });
       chartAsistencia.data.labels = Object.keys(byTurno);
       chartAsistencia.data.datasets[0].data = Object.values(byTurno);
       chartAsistencia.update();
 
+      // CORRECCIÓN: Usar production_real en lugar de produccion_real
       const byProd = {};
       prodFil.forEach(p=>{
-        byProd[p.Producto] = (byProd[p.Producto]||0) + toFloat(p.Produccion_Real);
+        byProd[p.producto] = (byProd[p.producto]||0) + toFloat(p.production_real);
       });
       chartProduccion.data.labels = Object.keys(byProd);
       chartProduccion.data.datasets[0].data = Object.values(byProd).map(fmt2);
@@ -782,14 +818,15 @@
 
       const oeeMap = {};
       prodFil.forEach(p=>{
-        (oeeMap[p.Fecha] ||= []).push(toFloat(p.OEE));
+        (oeeMap[p.fecha] ||= []).push(toFloat(p.oee));
       });
       const fechas = Object.keys(oeeMap).sort(byDateAsc);
-      const oees = fechas.map(f=>{
+      const oeeValues = fechas.map(f=>{
         const arr=oeeMap[f]; return arr.length? (arr.reduce((a,b)=>a+b,0)/arr.length):0;
       }).map(n=>Number(fmt2(n)));
       chartOEE.data.labels = fechas;
-      chartOEE.data.datasets[0].data = oees;
+      chartOEE.data.datasets[0].data = oeeValues;
+      chartOEE.data.datasets[0].label = 'OEE Promedio (%)';
       chartOEE.update();
 
       const byMotivo = {};
@@ -821,7 +858,7 @@
       actualizarMetricas();
     });
 
-    // ===== CÁMARA Y DETECCIÓN DE ROSTRO (mejorada) =====
+    // ===== CÁMARA Y DETECCIÓN DE ROSTRO =====
     async function iniciarCamara() {
       try {
         stopCamera();
@@ -854,7 +891,6 @@
       }
     }
 
-    // Función mejorada de detección de rostros
     async function detectFace() {
       const nombre = document.getElementById('nuevo-nombre').value.trim();
       const apellido = document.getElementById('nuevo-apellido').value.trim();
@@ -883,21 +919,21 @@
         const data = await res.json();
         
         if (data.success) {
-          // Mostrar cuadro de detección
-          drawDetectionBox();
-          detectionStatus.textContent = `¡Rostro detectado! Capturando en 3 segundos...`;
-          detectionStatus.style.color = 'var(--ok)';
-          
-          // Esperar 3 segundos y capturar
-          setTimeout(() => {
-            clearInterval(detectionInterval);
+            drawDetectionBox();
+            detectionStatus.textContent = `¡Rostro detectado! Capturando en 3 segundos...`;
+            detectionStatus.style.color = 'var(--ok)';
+            
+            // GUARDAR LOS VALORES CORRECTAMENTE
             fotoPath = data.foto_path;
-            employeeId = data.id;
-            tomarFoto();
-            reintentarBtn.style.display = 'block';
-            detectionOverlay.innerHTML = '';
-            detectionStatus.textContent = 'Foto capturada correctamente';
-          }, 3000);
+            employeeId = data.id_empleado;  // ← CAMBIA data.id por data.id_empleado
+            
+            setTimeout(() => {
+                clearInterval(detectionInterval);
+                tomarFoto();
+                reintentarBtn.style.display = 'block';
+                detectionOverlay.innerHTML = '';
+                detectionStatus.textContent = 'Foto capturada correctamente';
+            }, 3000);
           
           return true;
         } else {
@@ -914,7 +950,6 @@
       }
     }
 
-    // Dibujar cuadro de detección
     function drawDetectionBox() {
       detectionOverlay.innerHTML = '';
       const box = document.createElement('div');
@@ -947,13 +982,6 @@
     }
 
     reintentarBtn.addEventListener('click', async () => {
-      if (fotoPath) {
-        await fetch('/api/borrar_foto', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ foto_path: fotoPath })
-        });
-      }
       capturedPhoto.style.display = 'none';
       capturedPhoto.src = '';
       fotoPath = '';
@@ -973,13 +1001,6 @@
         return;
       }
 
-      const ext = file.name.split('.').pop().toLowerCase();
-      if (!['jpg', 'jpeg', 'png'].includes(ext)) {
-        mensaje.textContent = 'Formato inválido. Solo .jpg, .jpeg o .png.';
-        mensaje.style.color = 'var(--danger)';
-        return;
-      }
-
       const nombre = document.getElementById('nuevo-nombre').value.trim();
       const apellido = document.getElementById('nuevo-apellido').value.trim();
       if (!nombre || !apellido) {
@@ -994,9 +1015,6 @@
       formData.append('frame', file, file.name);
 
       try {
-        detectionStatus.textContent = 'Procesando imagen...';
-        detectionStatus.style.color = 'var(--text)';
-        
         const res = await fetch('/api/detectar_rostro', {
           method: 'POST',
           body: formData
@@ -1015,7 +1033,6 @@
         } else {
           detectionStatus.textContent = data.message || 'No se detectó un rostro en la imagen.';
           detectionStatus.style.color = 'var(--danger)';
-          reintentarBtn.style.display = 'block';
         }
       } catch (err) {
         console.error('Error al subir imagen:', err);
@@ -1024,55 +1041,6 @@
       }
     });
 
-    agregarForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const nombre = document.getElementById('nuevo-nombre').value.trim();
-      const apellido = document.getElementById('nuevo-apellido').value.trim();
-      const departamento = document.getElementById('nuevo-departamento').value;
-      const turno = document.getElementById('nuevo-turno').value;
-
-      if (!nombre || !apellido || !departamento || !turno || !fotoPath || !employeeId) {
-        mensaje.textContent = 'Todos los campos son requeridos, incluyendo la foto.';
-        mensaje.style.color = 'var(--danger)';
-        return;
-      }
-
-      const formData = new FormData();
-      formData.append('nombre', nombre);
-      formData.append('apellido', apellido);
-      formData.append('departamento', departamento);
-      formData.append('turno', turno);
-      formData.append('foto_path', fotoPath);
-
-      try {
-        const res = await fetch('/api/agregar_empleado', {
-          method: 'POST',
-          body: formData
-        });
-        const data = await res.json();
-        if (data.success) {
-          mensaje.textContent = 'Empleado agregado exitosamente.';
-          mensaje.style.color = 'var(--ok)';
-          agregarForm.reset();
-          capturedPhoto.src = '';
-          capturedPhoto.style.display = 'none';
-          reintentarBtn.style.display = 'none';
-          detectionStatus.textContent = 'Ingrese nombre y apellido para iniciar la cámara';
-          detectionStatus.style.color = 'var(--text)';
-          await cargarEmpleados();
-          await iniciarCamara();
-        } else {
-          mensaje.textContent = 'Error al agregar empleado (verifica departamento, turno o foto).';
-          mensaje.style.color = 'var(--danger)';
-        }
-      } catch (err) {
-        console.error('Error al enviar datos:', err);
-        mensaje.textContent = 'Error al conectar con el servidor.';
-        mensaje.style.color = 'var(--danger)';
-      }
-    });
-
-    // ===== FUNCIONALIDAD PARA TÓTEMS =====
     // Función para agregar logs al panel
     function agregarLog(mensaje) {
       const logEntry = document.createElement('div');
@@ -1090,12 +1058,12 @@
       agregarLog(`Iniciando tótem en modo ${modo === 'entry' ? 'ingreso' : 'egreso'}...`);
       
       try {
+        const formData = new FormData();
+        formData.append('modo', modo);
+        
         const response = await fetch('/api/ejecutar_totem', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ modo: modo })
+          body: formData
         });
         
         const data = await response.json();
@@ -1119,16 +1087,81 @@
     // Event listener para el botón de ejecutar tótem
     document.getElementById('ejecutar-totem').addEventListener('click', ejecutarTotem);
 
+    // ===== MANEJO DEL FORMULARIO AGREGAR EMPLEADO =====
+    agregarForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const nombre = document.getElementById('nuevo-nombre').value.trim();
+        const apellido = document.getElementById('nuevo-apellido').value.trim();
+        const departamento = document.getElementById('nuevo-departamento').value;
+        const turno = document.getElementById('nuevo-turno').value;
+        
+        if (!nombre || !apellido || !departamento || !turno) {
+            mensaje.textContent = 'Todos los campos son obligatorios';
+            mensaje.style.color = 'var(--danger)';
+            return;
+        }
+        
+        if (!fotoPath) {
+            mensaje.textContent = 'Debe capturar o subir una foto primero';
+            mensaje.style.color = 'var(--danger)';
+            return;
+        }
+        
+        mensaje.textContent = 'Agregando empleado...';
+        mensaje.style.color = 'var(--text)';
+        
+        try {
+            const formData = new FormData();
+            formData.append('nombre', nombre);
+            formData.append('apellido', apellido);
+            formData.append('departamento', departamento);
+            formData.append('turno', turno);
+            formData.append('foto_path', fotoPath);
+            
+            const response = await fetch('/api/agregar_empleado', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                mensaje.textContent = data.message || 'Empleado agregado correctamente';
+                mensaje.style.color = 'var(--ok)';
+                
+                // Limpiar formulario
+                agregarForm.reset();
+                capturedPhoto.style.display = 'none';
+                fotoPath = '';
+                employeeId = null;
+                
+                // Recargar lista de empleados
+                await cargarEmpleados();
+                
+            } else {
+                mensaje.textContent = data.message || 'Error al agregar empleado';
+                mensaje.style.color = 'var(--danger)';
+            }
+            
+        } catch (error) {
+            console.error('Error al agregar empleado:', error);
+            mensaje.textContent = 'Error de conexión al servidor';
+            mensaje.style.color = 'var(--danger)';
+        }
+    });
+
+
     // ===== INIT =====
     function initMetricSelectsIfEmpty(){
       if(!document.getElementById('met-turno').options.length || document.getElementById('met-turno').options.length===1){
-        fillSelect('met-turno', uniq([...empleadosData.map(e=>e.Turno), ...produccionData.map(p=>p.Turno)]));
+        fillSelect('met-turno', uniq([...empleadosData.map(e=>e.turno), ...produccionData.map(p=>p.turno)]));
       }
       if(!document.getElementById('met-departamento').options.length || document.getElementById('met-departamento').options.length===1){
-        fillSelect('met-departamento', uniq(empleadosData.map(e=>e.Departamento)));
+        fillSelect('met-departamento', uniq(empleadosData.map(e=>e.departamento)));
       }
       if(!document.getElementById('met-producto').options.length || document.getElementById('met-producto').options.length===1){
-        fillSelect('met-producto', uniq(produccionData.map(p=>p.Producto)));
+        fillSelect('met-producto', uniq(produccionData.map(p=>p.producto)));
       }
     }
 
