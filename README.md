@@ -1,20 +1,26 @@
 ## Prototipo de Control de Ingreso con Reconocimiento Facial
 
 ## Requerimientos
-| Librería             | Versión recomendada | Uso                               |
-| -------------------- | ------------------- | --------------------------------- |
-| Python               | 3.10 o 3.11         | Base del proyecto                 |
-| opencv-python        | 4.7.0.72            | Procesamiento de imágenes y video |
-| dlib                 | 19.24.1             | Detección de rostros y landmarks  |
-| face-recognition     | 1.3.0               | Reconocimiento facial sobre dlib  |
-| numpy                | 1.26.0              | Manejo de matrices e imágenes     |
-| Pillow               | 10.0.0              | Manipulación de imágenes          |
-| imutils              | 0.5.4               | Funciones auxiliares para OpenCV  |
-| flask                | 2.3.2               | Aplicaciones web en Python        |
+| Requerimientos       | Versión recomendada | Uso                                           |
+| -------------------- | ------------------- | ----------------------------------------------|
+| Visual Studio Code   | -                   | Entorno de desarrollo y ejecución del proyecto|
+| Python               | 3.11                | Base del proyecto                             |
+| opencv-python        | 4.7.0.72            | Procesamiento de imágenes y video             |
+| dlib                 | 19.24.1             | Detección de rostros y landmarks              |
+| face-recognition     | 1.3.0               | Reconocimiento facial sobre dlib              |
+| numpy                | 1.26.0              | Manejo de matrices e imágenes                 |
+| Pillow               | 10.0.0              | Manipulación de imágenes                      |
+| imutils              | 0.5.4               | Funciones auxiliares para OpenCV              |
+| flask                | 2.3.2               | Aplicaciones web en Python                    |
 
 ## Instalación
+Primero, descargamos e instalamos Visual Studio Code en nuestra computadora Windows 10/11:
+* Link de Visual Studio Code: https://code.visualstudio.com/download
 
-En la terminal, situados en la raíz del proyecto ejecutar los siguientes comando: 
+Segundo, descargamos e instalamos la version 3.11 de Python:
+* Link de Python 3.11.9: https://www.python.org/downloads/release/python-3119/
+
+Tercero, dentro de Visual Studio Code, abrimos la carpeta del proyecto, y en la terminal, situados en la raíz del proyecto ejecutar los siguientes comando: 
 
 Crear un entorno virtual (solo la primera vez):
 * python -m venv venv
@@ -32,7 +38,7 @@ Ejecutá la aplicación web:
 * python -m web.app
 
 Ejecutar la aplicación de escritorio:
-* python -m main.py
+* python main.py
 
 ## Uso de la pagina de la aplicacion
 Se puede acceder a la pagina de la aplicacion mediante la instalacion local o mediante el siguente link: https://grupo12.pythonanywhere.com/
