@@ -1,27 +1,30 @@
-# Usamos una versión de Python oficial
 FROM python:3.10-slim
 
-# Instalamos las dependencias del sistema necesarias para dlib y face_recognition
-RUN apt-get update && apt-get install -y \
+# Evita que Python genere archivos .pyc y que el output se guarde en buffer
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
+# Instalación de dependencias con re-intento y limpieza
+RUN apt-get update --fix-missing && apt-get install -y --no-install-recommends \
     build-essential \
     cmake \
     libx11-dev \
     libatlas-base-dev \
     libboost-python-dev \
     libboost-thread-dev \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Definimos el directorio de trabajo
 WORKDIR /app
 
-# Copiamos el archivo de requerimientos
-COPY requirements.txt .
+# Primero instalamos dlib por separado (es lo que más tarda y falla)
+# Esto ayuda a que si falla lo demás, dlib ya esté en caché
+RUN pip install --no-cache-dir dlib==19.24.1
 
-# Instalamos las librerías de Python (esto tardará unos minutos la primera vez)
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiamos todo el contenido del proyecto
 COPY . .
 
-# Comando para ejecutar la app (Render usa el puerto 10000 por defecto)
+# Usamos el puerto 10000 que es el estándar de Render
 CMD ["uvicorn", "web.app:app", "--host", "0.0.0.0", "--port", "10000"]
