@@ -35,7 +35,7 @@ Instalá todas las dependencias (solo la primera vez):
 * pip install -r requirements.txt
 
 Ejecutá la aplicación web:
-* python -m web.app
+* uvicorn web.app:app --reload
 
 Ejecutar la aplicación de escritorio:
 * python main.py
