@@ -1,18 +1,17 @@
 FROM python:3.10-slim
 
-# Evita que Python genere archivos .pyc y que el output se guarde en buffer
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+# Cambiamos a los mirrors de debian para evitar el error 100
+RUN sed -i 's/deb.debian.org/archive.debian.org/g' /etc/apt/sources.list && \
+    sed -i 's|security.debian.org/debian-security|archive.debian.org/debian-security|g' /etc/apt/sources.list && \
+    sed -i '/stretch-updates/d' /etc/apt/sources.list
 
-# Instalación de dependencias con re-intento y limpieza
-RUN apt-get update --fix-missing && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     cmake \
     libx11-dev \
     libatlas-base-dev \
     libboost-python-dev \
     libboost-thread-dev \
-    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
